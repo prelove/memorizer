@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.memorizer</groupId>
+  <artifactId>memorizer</artifactId>
+  <name>Memorizer</name>
+  <version>0.1.0-SNAPSHOT</version>
+  <description>Lightweight desktop memorization assistant (Java8 + JavaFX)</description>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>true</createDependencyReducedPom>
+              <transformers>
+                <transformer>
+                  <mainClass>${main.class}</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <encoding>UTF-8</encoding>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <properties>
+    <poi.version>5.2.5</poi.version>
+    <slf4j.version>1.7.36</slf4j.version>
+    <caffeine.version>2.9.3</caffeine.version>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <flyway.version>7.15.0</flyway.version>
+    <logback.version>1.2.13</logback.version>
+    <main.class>com.memorizer.app.MainApp</main.class>
+    <maven.compiler.source>1.8</maven.compiler.source>
+  </properties>
+</project>

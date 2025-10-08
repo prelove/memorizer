@@ -1,9 +1,14 @@
 package com.memorizer.db;
 
-import com.memorizer.model.Card;
-
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.util.Optional;
+
+import com.memorizer.model.Card;
 
 public class CardRepository {
 
@@ -96,6 +101,51 @@ public class CardRepository {
         }
         return Optional.empty();
     }
+    
+    public Optional<Card> findNextDueOrNewExcluding(long excludeId) {
+        java.sql.Timestamp now = new java.sql.Timestamp(System.currentTimeMillis());
+        // due first
+        try (PreparedStatement ps = Database.get().prepareStatement(
+                "SELECT id, note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at " +
+                "FROM card WHERE id<>? AND (due_at IS NOT NULL AND due_at <= ?) AND status <> 3 " +
+                "ORDER BY due_at ASC LIMIT 1")) {
+            ps.setLong(1, excludeId);
+            ps.setTimestamp(2, now);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findNextDueOrNewExcluding(due) failed", e);
+        }
+        // else new
+        try (PreparedStatement ps = Database.get().prepareStatement(
+                "SELECT id, note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at " +
+                "FROM card WHERE id<>? AND (due_at IS NULL OR status = 0) AND status <> 3 " +
+                "ORDER BY id ASC LIMIT 1")) {
+            ps.setLong(1, excludeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findNextDueOrNewExcluding(new) failed", e);
+        }
+        return Optional.empty();
+    }
+
+    public Optional<Card> findAnyAvailableExcluding(long excludeId) {
+        try (PreparedStatement ps = Database.get().prepareStatement(
+                "SELECT id, note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at " +
+                "FROM card WHERE id<>? AND status <> 3 ORDER BY id ASC LIMIT 1")) {
+            ps.setLong(1, excludeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findAnyAvailableExcluding failed", e);
+        }
+        return Optional.empty();
+    }
+
     
     private Card map(ResultSet rs) throws SQLException {
         Card c = new Card();

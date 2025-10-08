@@ -67,7 +67,9 @@ public class Scheduler {
         if (v.isPresent()) {
             StudyService.CardView cv = v.get();
             Platform.runLater(() -> {
-                stealth.showCard(cv.front, cv.back);
+                int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+                stealth.startBatch(batch);
+                stealth.showCardView(cv);   // 注意：现在传的是 CardView
                 stealth.showAndFocus();
             });
         } else {
@@ -77,29 +79,30 @@ public class Scheduler {
 
     private void tick() {
         try {
-            java.util.Optional<com.memorizer.service.StudyService.CardView> v;
+            java.util.Optional<com.memorizer.service.StudyService.CardView> v = java.util.Optional.empty();
 
             boolean forceWhenEmpty = Boolean.parseBoolean(
                     com.memorizer.app.Config.get("app.study.force-show-when-empty", "true"));
 
             if (!paused) {
-                if (forceWhenEmpty) {
-                    // 优先正常 due/new，否则兜底一张，也让用户保持“看到东西”
-                    v = study.nextCard();
-                    if (!v.isPresent()) v = study.currentOrNextOrFallback();
-                } else {
-                    v = study.nextCard();
+                // 先按 due/new，若允许兜底则再走 fallback
+                v = study.nextCard();
+                if (!v.isPresent() && forceWhenEmpty) {
+                    v = study.currentOrNextOrFallback();
                 }
 
                 if (v.isPresent()) {
-                    com.memorizer.service.StudyService.CardView cv = v.get();
+                    final com.memorizer.service.StudyService.CardView cv = v.get();
+                    final int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+
                     javafx.application.Platform.runLater(() -> {
-                        stealth.showCard(cv.front, cv.back);
+                        stealth.startBatch(batch);     // 批次开始（1=单张）
+                        stealth.showCardView(cv);      // 用 CardView 新方法
                         stealth.showAndFocus();
                     });
                 } else {
                     log.info("No cards to show (due/new empty{}).",
-                            forceWhenEmpty ? ", fallback disabled" : "");
+                            forceWhenEmpty ? "" : ", fallback disabled");
                 }
             } else {
                 log.debug("tick skipped (paused).");
@@ -113,6 +116,7 @@ public class Scheduler {
             }
         }
     }
+
 
     private long nextDelayMinutes() {
         int min = Config.getInt("app.study.min-interval-minutes", 20);

@@ -27,6 +27,11 @@ public class StealthStage extends Stage {
     private final Label backLabel  = new Label();
     private boolean showingFront = true;
     
+    private long currentCardId = -1;
+    private boolean inBatch = false;
+    private int remainingInBatch = 1; // how many cards left in this session
+    private final Label batchInfo = new Label(); // shows like (2/3)
+
     private final Label debugLabel = new Label(); // 放在右侧小字显示
     private boolean debugEnabled = Boolean.parseBoolean(
             com.memorizer.app.Config.get("app.debug.srs", "false"));
@@ -66,12 +71,13 @@ public class StealthStage extends Stage {
         debugLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 11px;");
         if (!debugEnabled) debugLabel.setVisible(false);
         
+        batchInfo.setStyle("-fx-text-fill: #bbb; -fx-font-size: 11px;");
         HBox bar = new HBox(12,
                 new Label("Card:"),
                 frontLabel,
                 backLabel,
                 spacer,
-                debugLabel,  // <--- 新增
+                batchInfo,     // <--- 新增
                 flip, again, hard, good, easy, close
         );
         
@@ -124,13 +130,14 @@ public class StealthStage extends Stage {
         this.study = study;
     }
 
-    public void showCard(String front, String back) {
-        frontLabel.setText("Front: " + front);
-        backLabel.setText("Back: " + back);
+    public void showCardView(com.memorizer.service.StudyService.CardView v) {
+        this.currentCardId = v.cardId;
+        frontLabel.setText("Front: " + v.front);
+        backLabel.setText("Back: " + v.back);
         showingFront = true;
         frontLabel.setVisible(true);
         backLabel.setVisible(false);
-        setDebugText(null); // 清空，或由上层传入
+        updateBatchInfoLabel();
     }
 
     private void toggleFace() {
@@ -139,20 +146,61 @@ public class StealthStage extends Stage {
         backLabel.setVisible(!showingFront);
     }
 
-    private void rateAndHide(Rating r) {
+    private void rateAndHide(com.memorizer.model.Rating r) {
         if (study != null) {
+            long lastId = currentCardId;
             study.rate(r);
+            if (inBatch) {
+                remainingInBatch--;
+                boolean allowFallback = Boolean.parseBoolean(com.memorizer.app.Config.get("app.study.force-show-when-empty", "true"));
+                if (remainingInBatch > 0) {
+                    java.util.Optional<com.memorizer.service.StudyService.CardView> next =
+                            study.nextForBatch(lastId, allowFallback);
+                    if (next.isPresent()) {
+                        showCardView(next.get());
+                        return; // 继续批次，不隐藏
+                    }
+                }
+            }
         }
-        hide();
+        endBatchAndHide();
     }
-    
+
     private void hideWithSnooze() {
         if (study != null) {
             boolean enabled = Boolean.parseBoolean(com.memorizer.app.Config.get("app.study.snooze-on-hide-enabled","true"));
             int minutes = com.memorizer.app.Config.getInt("app.study.snooze-on-hide-minutes", 10);
             study.dismissWithoutRating(enabled, minutes);
         }
-        hide();
+        endBatchAndHide();
     }
     
+    public void startBatch(int batchSize) {
+        if (batchSize < 1) batchSize = 1;
+        this.inBatch = batchSize > 1;
+        this.remainingInBatch = batchSize;
+        updateBatchInfoLabel();
+    }
+
+    private void endBatchAndHide() {
+        this.inBatch = false;
+        this.remainingInBatch = 1;
+        this.currentCardId = -1;
+        updateBatchInfoLabel();
+        hide();
+    }
+
+    private void updateBatchInfoLabel() {
+        if (inBatch) {
+            int total = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+            int done = Math.max(0, total - remainingInBatch + 1); // 当前这张算第几张
+            if (currentCardId <= 0) done = Math.max(0, total - remainingInBatch);
+            batchInfo.setText("(" + done + "/" + total + ")");
+            batchInfo.setVisible(true);
+        } else {
+            batchInfo.setText("");
+            batchInfo.setVisible(false);
+        }
+    }
+
 }

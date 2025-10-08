@@ -27,8 +27,10 @@ public final class TrayActions {
         if (opt.isPresent()) {
             com.memorizer.service.StudyService.CardView v = opt.get();
             Platform.runLater(() -> {
-                StealthStage stage = com.memorizer.app.AppContext.getStealth();
-                stage.showCard(v.front, v.back);
+                com.memorizer.ui.StealthStage stage = com.memorizer.app.AppContext.getStealth();
+                int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+                stage.startBatch(batch);
+                stage.showCardView(v);   // 传 CardView
                 stage.showAndFocus();
             });
         } else {

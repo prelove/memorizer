@@ -80,6 +80,29 @@ public class StudyService {
         v.back  = on.get().back;
         return Optional.of(v);
     }
+    
+    /** Get next card for batch session: prefer due/new, excluding the previous card; fallback optional. */
+    public Optional<CardView> nextForBatch(long excludeCardId, boolean allowFallback) {
+        com.memorizer.db.CardRepository repo = new com.memorizer.db.CardRepository();
+        java.util.Optional<com.memorizer.model.Card> oc = repo.findNextDueOrNewExcluding(excludeCardId);
+        if (!oc.isPresent() && allowFallback) {
+            oc = repo.findAnyAvailableExcluding(excludeCardId);
+        }
+        if (!oc.isPresent()) return Optional.empty();
+        com.memorizer.model.Card c = oc.get();
+        java.util.Optional<com.memorizer.model.Note> on = noteRepo.findById(c.noteId);
+        if (!on.isPresent()) return Optional.empty();
+
+        showingCardId = c.id;
+        showStartedAtMs = System.currentTimeMillis();
+
+        CardView v = new CardView();
+        v.cardId = c.id;
+        v.front = on.get().front;
+        v.back  = on.get().back;
+        return Optional.of(v);
+    }
+
 
     /** Fetch next due or new card; return empty if none. */
     public Optional<CardView> nextCard() {
