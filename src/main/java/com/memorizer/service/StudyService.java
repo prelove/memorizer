@@ -129,6 +129,39 @@ public class StudyService {
         showingCardId = -1;
         showStartedAtMs = 0;
     }
+    
+    /** Hide without rating: optionally snooze the current card, then clear current state. */
+    public void dismissWithoutRating(boolean snoozeEnabled, int snoozeMinutes) {
+        if (showingCardId <= 0) return;
+        if (snoozeEnabled) {
+            snoozeCurrent(snoozeMinutes);
+        } else {
+            // just forget current focus
+            showingCardId = -1;
+            showStartedAtMs = 0;
+        }
+    }
+
+    /** Move current card's due to now + minutes; make it 'learning' if it was new. */
+    public void snoozeCurrent(int minutes) {
+        if (showingCardId <= 0) return;
+        Card c = loadById(showingCardId);
+        if (c == null) return;
+
+        double ivlDays = minutes / (24.0 * 60.0);
+        c.dueAt = com.memorizer.srs.SrsEngine.nowPlusDays(ivlDays);
+
+        // for brand-new cards (interval null), give them a tiny interval and set to learning
+        if (c.intervalDays == null || c.intervalDays <= 0.0) c.intervalDays = ivlDays;
+        if (c.status == 0) c.status = 1; // learning
+
+        c.lastReviewAt = new java.sql.Timestamp(System.currentTimeMillis());
+        new com.memorizer.db.CardRepository().updateSchedule(c);
+
+        // clear current focus
+        showingCardId = -1;
+        showStartedAtMs = 0;
+    }
 
     private Card loadById(long id) {
         try (java.sql.PreparedStatement ps = com.memorizer.db.Database.get()

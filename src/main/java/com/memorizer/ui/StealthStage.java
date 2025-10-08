@@ -44,9 +44,15 @@ public class StealthStage extends Stage {
         Button hard  = new Button("2 Hard");
         Button good  = new Button("3 Good");
         Button easy  = new Button("4 Easy");
+        
         Button close = new Button("×");
+        close.setOnAction(e -> hideWithSnooze());
 
-        close.setOnAction(e -> hide());
+        // 防止系统“关闭窗口”导致退出（双保险）
+        setOnCloseRequest(e -> {
+            e.consume();
+            hideWithSnooze();
+        });
 
         flip.setOnAction(e -> toggleFace());
         again.setOnAction(e -> rateAndHide(Rating.AGAIN));
@@ -82,13 +88,13 @@ public class StealthStage extends Stage {
         // Keyboard shortcuts
         scene.setOnKeyPressed(ev -> {
             if (ev.getCode() == KeyCode.SPACE || ev.getCode() == KeyCode.ENTER) toggleFace();
-            if (ev.getCode() == KeyCode.DIGIT1) rateAndHide(Rating.AGAIN);
-            if (ev.getCode() == KeyCode.DIGIT2) rateAndHide(Rating.HARD);
-            if (ev.getCode() == KeyCode.DIGIT3) rateAndHide(Rating.GOOD);
-            if (ev.getCode() == KeyCode.DIGIT4) rateAndHide(Rating.EASY);
-            if (ev.getCode() == KeyCode.ESCAPE) hide();
+            if (ev.getCode() == KeyCode.DIGIT1) rateAndHide(com.memorizer.model.Rating.AGAIN);
+            if (ev.getCode() == KeyCode.DIGIT2) rateAndHide(com.memorizer.model.Rating.HARD);
+            if (ev.getCode() == KeyCode.DIGIT3) rateAndHide(com.memorizer.model.Rating.GOOD);
+            if (ev.getCode() == KeyCode.DIGIT4) rateAndHide(com.memorizer.model.Rating.EASY);
+            if (ev.getCode() == KeyCode.ESCAPE) hideWithSnooze();
         });
-
+        
         setScene(scene);
 
         // Size & position bottom
@@ -98,11 +104,6 @@ public class StealthStage extends Stage {
         setWidth(bounds.getWidth());
         setHeight(height);
         setY(bounds.getMaxY() - height - 2);
-        
-        setOnCloseRequest(e -> {
-            e.consume();
-            hide();
-        });
     }
     
     public void setDebugText(String txt) {
@@ -144,4 +145,14 @@ public class StealthStage extends Stage {
         }
         hide();
     }
+    
+    private void hideWithSnooze() {
+        if (study != null) {
+            boolean enabled = Boolean.parseBoolean(com.memorizer.app.Config.get("app.study.snooze-on-hide-enabled","true"));
+            int minutes = com.memorizer.app.Config.getInt("app.study.snooze-on-hide-minutes", 10);
+            study.dismissWithoutRating(enabled, minutes);
+        }
+        hide();
+    }
+    
 }
