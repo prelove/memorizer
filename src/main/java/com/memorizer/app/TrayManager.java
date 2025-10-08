@@ -1,26 +1,34 @@
+// src/main/java/com/memorizer/app/TrayManager.java
 package com.memorizer.app;
 
-import com.memorizer.ui.StealthStage;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.AWTException;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
 import java.awt.event.ActionListener;
-import java.awt.image.BufferedImage; // <-- add this import
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * System tray integration. Minimal controls:
- * - Show/Hide Stealth
- * - Start/Stop H2 Console
- * - Exit
- */
+import javax.imageio.ImageIO;
+
+import com.memorizer.service.StudyService;
+import com.memorizer.ui.StealthStage;
+
+import javafx.application.Platform;
+
 public final class TrayManager {
     private final TrayIcon trayIcon;
     private final StealthStage stealthStage;
+    private final StudyService study;
 
-    public TrayManager(StealthStage stealthStage) {
+    public TrayManager(StealthStage stealthStage, StudyService study) {
         this.stealthStage = stealthStage;
+        this.study = study;
 
         if (!SystemTray.isSupported()) {
             throw new IllegalStateException("System tray not supported on this platform.");
@@ -35,7 +43,6 @@ public final class TrayManager {
         MenuItem miH2   = new MenuItem("Open H2 Console");
         MenuItem miExit = new MenuItem("Exit");
 
-        // Build menu first (listeners will be wired AFTER trayIcon is assigned)
         menu.add(miShow);
         menu.add(miHide);
         menu.addSeparator();
@@ -43,25 +50,35 @@ public final class TrayManager {
         menu.addSeparator();
         menu.add(miExit);
 
-        // Now create the tray icon (so the field is definitely assigned)
         trayIcon = new TrayIcon(image, "Memorizer", menu);
         trayIcon.setImageAutoSize(true);
 
-        // Wire listeners AFTER trayIcon is initialized to avoid "blank final" error
-        miShow.addActionListener(e -> stealthStage.show());
-        miHide.addActionListener(e -> stealthStage.hide());
+        // ---- use FX thread for UI ops ----
+        miShow.addActionListener(e -> Platform.runLater(() -> {
+            java.util.Optional<com.memorizer.service.StudyService.CardView> opt = study.nextCard();
+            if (opt.isPresent()) {
+                com.memorizer.service.StudyService.CardView v = opt.get();
+                stealthStage.showCard(v.front, v.back);
+                stealthStage.show();
+            } else {
+                trayIcon.displayMessage("Memorizer", "No due/new cards.", TrayIcon.MessageType.INFO);
+            }
+        }));
+
+
+        miHide.addActionListener(e -> Platform.runLater(stealthStage::hide));
         miH2.addActionListener(openH2());
         miExit.addActionListener(e -> {
             H2ConsoleServer.stop();
-            stealthStage.close();
-            tray.remove(trayIcon); // use the local 'tray' we already obtained
+            Platform.runLater(stealthStage::close);
+            tray.remove(trayIcon);
             System.exit(0);
         });
 
         try {
             tray.add(trayIcon);
-        } catch (AWTException e) {
-            throw new RuntimeException("Failed to add tray icon", e);
+        } catch (AWTException ex) {
+            throw new RuntimeException("Failed to add tray icon", ex);
         }
     }
 
@@ -78,7 +95,6 @@ public final class TrayManager {
         try (InputStream in = TrayManager.class.getResourceAsStream("/icon-16.png")) {
             if (in != null) return ImageIO.read(in);
         } catch (IOException ignored) {}
-        // Fallback generic image
         int sz = 16;
         Image img = new BufferedImage(sz, sz, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = (Graphics2D) img.getGraphics();

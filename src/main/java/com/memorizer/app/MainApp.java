@@ -1,6 +1,7 @@
 package com.memorizer.app;
 
 import com.memorizer.db.Database;
+import com.memorizer.service.StudyService;
 import com.memorizer.ui.StealthStage;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -10,12 +11,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * JavaFX application bootstrap.
- * Stage A: start DB, migrations, H2 console, tray, and a hidden stealth stage.
+ * Stage A: DB + H2 console + tray.
+ * Step 2: StudyService + Scheduler wired to stealth banner.
  */
 public class MainApp extends Application {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
     private StealthStage stealthStage;
     private TrayManager trayManager;
+    private Scheduler scheduler;
+    private StudyService studyService;
 
     @Override
     public void start(Stage primaryStage) {
@@ -24,19 +28,27 @@ public class MainApp extends Application {
         // Start H2 console (localhost)
         H2ConsoleServer.startIfEnabled();
 
-        // Prepare stealth stage (hidden by default)
+        // Prepare stealth stage
         stealthStage = new StealthStage();
 
-        // Add system tray
-        trayManager = new TrayManager(stealthStage);
+        // Study service + bind to stage
+        studyService = new StudyService();
+        stealthStage.bindStudy(studyService);
 
-        // Do not show any primary window; we live in tray
+        // System tray
+        trayManager = new TrayManager(stealthStage, studyService);
+        
+        // Scheduler (randomized interval)
+        scheduler = new Scheduler(studyService, stealthStage);
+        scheduler.start();
+
         log.info("Memorizer started. Use tray menu to show/hide stealth banner.");
     }
 
     @Override
     public void stop() {
         try {
+            if (scheduler != null) scheduler.stop();
             H2ConsoleServer.stop();
             Database.stop();
         } catch (Exception ignored) {}
@@ -44,7 +56,6 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
-        // For JDK8 + JavaFX, just launch
         launch(args);
     }
 }
