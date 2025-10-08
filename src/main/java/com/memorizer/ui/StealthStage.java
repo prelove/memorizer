@@ -3,6 +3,7 @@ package com.memorizer.ui;
 import com.memorizer.app.Config;
 import com.memorizer.model.Rating;
 import com.memorizer.service.StudyService;
+
 import javafx.geometry.Insets;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
@@ -27,7 +28,7 @@ public class StealthStage extends Stage {
     private boolean showingFront = true;
 
     private StudyService study;
-
+    
     public StealthStage() {
         initStyle(StageStyle.UNDECORATED);
         setAlwaysOnTop(true);
@@ -87,7 +88,21 @@ public class StealthStage extends Stage {
         setWidth(bounds.getWidth());
         setHeight(height);
         setY(bounds.getMaxY() - height - 2);
+        
+        setOnCloseRequest(e -> {
+            e.consume();
+            hide();
+        });
     }
+    
+    public void showAndFocus() {
+        if (!isShowing()) {
+            show();
+        }
+        toFront();
+        requestFocus();
+    }
+
 
     public void bindStudy(StudyService study) {
         this.study = study;

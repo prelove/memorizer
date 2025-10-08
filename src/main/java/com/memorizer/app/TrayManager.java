@@ -1,8 +1,7 @@
 package com.memorizer.app;
 
-import com.memorizer.importer.ExcelImportService;
-import com.memorizer.importer.ExcelTemplateService;
 import com.memorizer.service.StudyService;
+import com.memorizer.ui.MainStage;
 import com.memorizer.ui.StealthStage;
 import javafx.application.Platform;
 
@@ -10,41 +9,45 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public final class TrayManager {
     private final TrayIcon trayIcon;
     private final StealthStage stealthStage;
+    private final MainStage mainStage;
     private final StudyService study;
-    private final ExcelImportService importer = new ExcelImportService();
-    private final ExcelTemplateService templater = new ExcelTemplateService();
-    private final ExecutorService bg = Executors.newSingleThreadExecutor();
+    private final Scheduler scheduler;
 
-    public TrayManager(StealthStage stealthStage, StudyService study) {
+    private final MenuItem miPause = new MenuItem("Pause Reminders");
+    private final MenuItem miResume = new MenuItem("Resume Reminders");
+
+    public TrayManager(StealthStage stealthStage, MainStage mainStage, StudyService study, Scheduler scheduler) {
         this.stealthStage = stealthStage;
+        this.mainStage = mainStage;
         this.study = study;
+        this.scheduler = scheduler;
 
-        if (!SystemTray.isSupported()) {
-            throw new IllegalStateException("System tray not supported on this platform.");
-        }
+        if (!SystemTray.isSupported()) throw new IllegalStateException("System tray not supported on this platform.");
         final SystemTray tray = SystemTray.getSystemTray();
 
         Image image = loadIcon();
         PopupMenu menu = new PopupMenu();
 
-        MenuItem miShow = new MenuItem("Show Stealth");
-        MenuItem miHide = new MenuItem("Hide Stealth");
+        MenuItem miOpenMain = new MenuItem("Open Main Window");
+        MenuItem miShow = new MenuItem("Show Stealth Now");
+        MenuItem miSnooze = new MenuItem("Snooze 10 min");
         MenuItem miImport = new MenuItem("Import Excel...");
         MenuItem miTemplate = new MenuItem("Save Import Template...");
         MenuItem miH2   = new MenuItem("Open H2 Console");
         MenuItem miExit = new MenuItem("Exit");
 
+        menu.add(miOpenMain);
         menu.add(miShow);
-        menu.add(miHide);
+        menu.addSeparator();
+        menu.add(miPause);
+        menu.add(miResume);
+        menu.add(miSnooze);
         menu.addSeparator();
         menu.add(miImport);
         menu.add(miTemplate);
@@ -55,72 +58,42 @@ public final class TrayManager {
 
         trayIcon = new TrayIcon(image, "Memorizer", menu);
         trayIcon.setImageAutoSize(true);
+        TrayActions.attachTrayIcon(trayIcon);
+
+        miOpenMain.addActionListener(e -> Platform.runLater(mainStage::showAndFocus));
 
         miShow.addActionListener(e -> Platform.runLater(() -> {
-            java.util.Optional<com.memorizer.service.StudyService.CardView> opt = study.nextCard();
-            if (opt.isPresent()) {
-                com.memorizer.service.StudyService.CardView v = opt.get();
-                stealthStage.showCard(v.front, v.back);
-                stealthStage.show();
-            } else {
-                trayIcon.displayMessage("Memorizer", "No due/new cards.", TrayIcon.MessageType.INFO);
-            }
+            TrayActions.showStealthNow(study);
         }));
 
-        miHide.addActionListener(e -> Platform.runLater(stealthStage::hide));
+        miPause.addActionListener(e -> { scheduler.pause(); updatePauseMenu(); });
+        miResume.addActionListener(e -> { scheduler.resume(); updatePauseMenu(); });
 
-        miImport.addActionListener(e -> doImportExcel());
-        miTemplate.addActionListener(e -> saveTemplate());
+        miSnooze.addActionListener(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
+
+        miImport.addActionListener(e -> TrayActions.openImportDialog());
+        miTemplate.addActionListener(e -> TrayActions.saveTemplateDialog());
 
         miH2.addActionListener(openH2());
         miExit.addActionListener(e -> {
             H2ConsoleServer.stop();
-            Platform.runLater(stealthStage::close);
+            Platform.runLater(() -> {
+                stealthStage.close();
+                if (mainStage != null) mainStage.close();
+            });
             tray.remove(trayIcon);
-            bg.shutdownNow();
+            scheduler.stop();
             System.exit(0);
         });
 
-        try {
-            tray.add(trayIcon);
-        } catch (AWTException ex) {
-            throw new RuntimeException("Failed to add tray icon", ex);
-        }
+        updatePauseMenu();
+        try { tray.add(trayIcon); } catch (AWTException ex) { throw new RuntimeException("Failed to add tray icon", ex); }
     }
 
-    private void doImportExcel() {
-        FileDialog fd = new FileDialog((Frame) null, "Import Excel (.xlsx/.xls)", FileDialog.LOAD);
-        fd.setFile("*.xlsx;*.xls");
-        fd.setVisible(true);
-        String file = fd.getFile();
-        String dir = fd.getDirectory();
-        if (file == null || dir == null) return;
-        File f = new File(dir, file);
-
-        trayIcon.displayMessage("Memorizer", "Importing " + f.getName() + "...", TrayIcon.MessageType.INFO);
-        bg.submit(() -> {
-            ExcelImportService.Report rpt = importer.importFile(f);
-            trayIcon.displayMessage("Import Result",
-                    rpt.message + "\n" + rpt.toString(),
-                    "OK".equals(rpt.message) ? TrayIcon.MessageType.INFO : TrayIcon.MessageType.WARNING);
-        });
-    }
-
-    private void saveTemplate() {
-        FileDialog fd = new FileDialog((Frame) null, "Save Import Template (.xlsx)", FileDialog.SAVE);
-        fd.setFile("import_template.xlsx");
-        fd.setVisible(true);
-        String file = fd.getFile();
-        String dir = fd.getDirectory();
-        if (file == null || dir == null) return;
-        File out = new File(dir, file);
-        try {
-            templater.saveTemplate(out);
-            trayIcon.displayMessage("Memorizer", "Template saved: " + out.getAbsolutePath(),
-                    TrayIcon.MessageType.INFO);
-        } catch (Exception ex) {
-            trayIcon.displayMessage("Template Error", ex.getMessage(), TrayIcon.MessageType.ERROR);
-        }
+    private void updatePauseMenu() {
+        boolean paused = scheduler.isPaused();
+        miPause.setEnabled(!paused);
+        miResume.setEnabled(paused);
     }
 
     private ActionListener openH2() {

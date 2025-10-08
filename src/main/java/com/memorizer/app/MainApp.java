@@ -2,6 +2,7 @@ package com.memorizer.app;
 
 import com.memorizer.db.Database;
 import com.memorizer.service.StudyService;
+import com.memorizer.ui.MainStage;
 import com.memorizer.ui.StealthStage;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -9,38 +10,35 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * JavaFX application bootstrap.
- * Stage A: DB + H2 console + tray.
- * Step 2: StudyService + Scheduler wired to stealth banner.
- */
 public class MainApp extends Application {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
     private StealthStage stealthStage;
+    private MainStage mainStage;
     private TrayManager trayManager;
     private Scheduler scheduler;
     private StudyService studyService;
 
     @Override
     public void start(Stage primaryStage) {
-        // Init DB + migrations
+        Platform.setImplicitExit(false);
+
         Database.start();
-        // Start H2 console (localhost)
         H2ConsoleServer.startIfEnabled();
 
-        // Prepare stealth stage
         stealthStage = new StealthStage();
-
-        // Study service + bind to stage
         studyService = new StudyService();
         stealthStage.bindStudy(studyService);
 
-        // System tray
-        trayManager = new TrayManager(stealthStage, studyService);
-        
-        // Scheduler (randomized interval)
         scheduler = new Scheduler(studyService, stealthStage);
         scheduler.start();
+
+        mainStage = new MainStage(studyService, scheduler);
+
+        // expose to context for TrayActions
+        AppContext.setStealth(stealthStage);
+        AppContext.setMain(mainStage);
+
+        trayManager = new TrayManager(stealthStage, mainStage, studyService, scheduler);
 
         log.info("Memorizer started. Use tray menu to show/hide stealth banner.");
     }

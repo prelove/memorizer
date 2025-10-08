@@ -1,18 +1,15 @@
 package com.memorizer.app;
 
+import com.memorizer.service.StudyService;
+import com.memorizer.ui.StealthStage;
 import javafx.application.Platform;
-import java.util.Random;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.memorizer.service.StudyService;
-import com.memorizer.ui.StealthStage;
+import java.util.Random;
+import java.util.concurrent.*;
 
-/** Simple scheduler: show stealth banner at randomized interval between min/max minutes. */
+/** Scheduler with pause/resume/snooze/showNow controls. */
 public class Scheduler {
     private static final Logger log = LoggerFactory.getLogger(Scheduler.class);
 
@@ -22,38 +19,85 @@ public class Scheduler {
         return t;
     });
     private final Random rnd = new Random();
-
     private final StudyService study;
     private final StealthStage stealth;
+
+    private volatile boolean paused = false;
+    private volatile ScheduledFuture<?> future;
 
     public Scheduler(StudyService study, StealthStage stealth) {
         this.study = study;
         this.stealth = stealth;
     }
 
-    public void start() {
-        long initial = TimeUnit.SECONDS.toMillis(5); // first show quickly to verify
-        ses.schedule(this::tick, initial, TimeUnit.MILLISECONDS);
+    public synchronized void start() {
+        if (future != null && !future.isCancelled()) return;
+        long initialDelayMs = TimeUnit.SECONDS.toMillis(5);
+        future = ses.schedule(this::tick, initialDelayMs, TimeUnit.MILLISECONDS);
         log.info("Scheduler started.");
+    }
+
+    public synchronized void stop() {
+        if (future != null) future.cancel(true);
+        ses.shutdownNow();
+    }
+
+    public void pause() {
+        paused = true;
+        log.info("Scheduler paused.");
+    }
+
+    public void resume() {
+        paused = false;
+        log.info("Scheduler resumed.");
+    }
+
+    public boolean isPaused() { return paused; }
+
+    /** Snooze next tick by N minutes (from now). */
+    public synchronized void snooze(int minutes) {
+        if (future != null) future.cancel(true);
+        future = ses.schedule(this::tick, minutes, TimeUnit.MINUTES);
+        log.info("Scheduler snoozed {} min.", minutes);
+    }
+
+    /** Manual show regardless of paused state. */
+    public void showNow() {
+        java.util.Optional<StudyService.CardView> v = study.currentOrNextOrFallback();
+        if (v.isPresent()) {
+            StudyService.CardView cv = v.get();
+            Platform.runLater(() -> {
+                stealth.showCard(cv.front, cv.back);
+                stealth.showAndFocus();
+            });
+        } else {
+            log.info("showNow: no cards to show.");
+        }
     }
 
     private void tick() {
         try {
-            java.util.Optional<StudyService.CardView> v = study.nextCard();
-            if (v.isPresent()) {
-                StudyService.CardView cv = v.get();
-                Platform.runLater(() -> {
-                    stealth.showCard(cv.front, cv.back);
-                    stealth.show();
-                });
+            if (!paused) {
+                java.util.Optional<StudyService.CardView> v = study.nextCard();
+                if (v.isPresent()) {
+                    StudyService.CardView cv = v.get();
+                    Platform.runLater(() -> {
+                        stealth.showCard(cv.front, cv.back);
+                        stealth.showAndFocus();
+                    });
+                } else {
+                    log.info("No due/new cards. Will try later.");
+                }
             } else {
-                log.info("No due/new cards. Will try later.");
+                log.debug("tick skipped (paused).");
             }
         } catch (Exception e) {
             log.warn("tick error: {}", e.toString());
         } finally {
             long delayMin = nextDelayMinutes();
-            ses.schedule(this::tick, delayMin, TimeUnit.MINUTES);
+            synchronized (this) {
+                future = ses.schedule(this::tick, delayMin, TimeUnit.MINUTES);
+            }
         }
     }
 
@@ -62,9 +106,5 @@ public class Scheduler {
         int max = Config.getInt("app.study.max-interval-minutes", 60);
         if (max < min) max = min;
         return min + rnd.nextInt(Math.max(1, (max - min) + 1));
-    }
-
-    public void stop() {
-        ses.shutdownNow();
     }
 }

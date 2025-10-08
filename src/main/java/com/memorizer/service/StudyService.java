@@ -25,6 +25,62 @@ public class StudyService {
         public String back;
     }
 
+    /** Build a view for the given card id (and set state as showing). */
+    public Optional<CardView> currentOrNextOrFallback() {
+        // 1) reopen current if any
+        if (showingCardId > 0) {
+            CardView v = viewOf(showingCardId);
+            if (v != null) return Optional.of(v);
+        }
+        // 2) next due/new
+        Optional<CardView> n = nextCard();
+        if (n.isPresent()) return n;
+        // 3) fallback any available card
+        java.util.Optional<com.memorizer.model.Card> any =
+                new com.memorizer.db.CardRepository().findAnyAvailable();
+        if (!any.isPresent()) return Optional.empty();
+        com.memorizer.model.Card c = any.get();
+        CardView v = viewOf(c.id);
+        return v == null ? Optional.empty() : Optional.of(v);
+    }
+
+    private CardView viewOf(long cardId) {
+        Card c = loadById(cardId);
+        if (c == null) return null;
+        java.util.Optional<com.memorizer.model.Note> on = noteRepo.findById(c.noteId);
+        if (!on.isPresent()) return null;
+        showingCardId = cardId;
+        showStartedAtMs = System.currentTimeMillis();
+        CardView v = new CardView();
+        v.cardId = cardId;
+        v.front = on.get().front;
+        v.back  = on.get().back;
+        return v;
+    }
+
+    /** Try next due/new; if none, fallback to any available card. */
+    public Optional<CardView> nextCardOrFallback() {
+        Optional<CardView> o = nextCard();
+        if (o.isPresent()) return o;
+
+        // No due/new -> fallback to any available card so user sees something
+        java.util.Optional<com.memorizer.model.Card> any = new com.memorizer.db.CardRepository().findAnyAvailable();
+        if (!any.isPresent()) return Optional.empty();
+
+        com.memorizer.model.Card c = any.get();
+        java.util.Optional<com.memorizer.model.Note> on = noteRepo.findById(c.noteId);
+        if (!on.isPresent()) return Optional.empty();
+
+        showingCardId = c.id;
+        showStartedAtMs = System.currentTimeMillis();
+
+        CardView v = new CardView();
+        v.cardId = c.id;
+        v.front = on.get().front;
+        v.back  = on.get().back;
+        return Optional.of(v);
+    }
+
     /** Fetch next due or new card; return empty if none. */
     public Optional<CardView> nextCard() {
         Optional<Card> oc = cardRepo.findNextDueOrNew();

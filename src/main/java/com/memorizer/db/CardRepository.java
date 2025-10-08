@@ -83,6 +83,20 @@ public class CardRepository {
         }
     }
     
+    /** Fallback: return any available (non-suspended) card when no due/new exists. */
+    public Optional<Card> findAnyAvailable() {
+        try (PreparedStatement ps = Database.get().prepareStatement(
+                "SELECT id, note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at " +
+                "FROM card WHERE status <> 3 ORDER BY id ASC LIMIT 1")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findAnyAvailable failed", e);
+        }
+        return Optional.empty();
+    }
+    
     private Card map(ResultSet rs) throws SQLException {
         Card c = new Card();
         c.id = rs.getLong(1);
