@@ -6,6 +6,7 @@ import java.sql.*;
 import java.util.Optional;
 
 public class NoteRepository {
+
     public Optional<Note> findById(long id) {
         try (PreparedStatement ps = Database.get().prepareStatement(
                 "SELECT id, deck_id, front, back, reading, pos, examples, tags FROM note WHERE id=?")) {
@@ -25,6 +26,31 @@ public class NoteRepository {
             }
         } catch (SQLException e) {
             throw new RuntimeException("findById failed", e);
+        }
+    }
+
+    /** Insert a note and return its id. */
+    public long insert(Note n) {
+        String sql = "INSERT INTO note(deck_id, front, back, reading, pos, examples, synonyms, antonyms, mnemo, tags, created_at) " +
+                     "VALUES (?,?,?,?,?,?,?,?,?,?, CURRENT_TIMESTAMP)";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            if (n.deckId == null) ps.setNull(1, Types.BIGINT); else ps.setLong(1, n.deckId);
+            ps.setString(2, n.front);
+            ps.setString(3, n.back);
+            ps.setString(4, n.reading);
+            ps.setString(5, n.pos);
+            ps.setString(6, n.examples);
+            ps.setString(7, null);
+            ps.setString(8, null);
+            ps.setString(9, null);
+            ps.setString(10, n.tags);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) return rs.getLong(1);
+                throw new RuntimeException("insert note: no generated key");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("insert note failed", e);
         }
     }
 }

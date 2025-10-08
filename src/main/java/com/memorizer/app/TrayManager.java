@@ -1,30 +1,28 @@
-// src/main/java/com/memorizer/app/TrayManager.java
 package com.memorizer.app;
 
-import java.awt.AWTException;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.MenuItem;
-import java.awt.PopupMenu;
-import java.awt.SystemTray;
-import java.awt.TrayIcon;
-import java.awt.event.ActionListener;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
-
-import javax.imageio.ImageIO;
-
+import com.memorizer.importer.ExcelImportService;
+import com.memorizer.importer.ExcelTemplateService;
 import com.memorizer.service.StudyService;
 import com.memorizer.ui.StealthStage;
-
 import javafx.application.Platform;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class TrayManager {
     private final TrayIcon trayIcon;
     private final StealthStage stealthStage;
     private final StudyService study;
+    private final ExcelImportService importer = new ExcelImportService();
+    private final ExcelTemplateService templater = new ExcelTemplateService();
+    private final ExecutorService bg = Executors.newSingleThreadExecutor();
 
     public TrayManager(StealthStage stealthStage, StudyService study) {
         this.stealthStage = stealthStage;
@@ -40,11 +38,16 @@ public final class TrayManager {
 
         MenuItem miShow = new MenuItem("Show Stealth");
         MenuItem miHide = new MenuItem("Hide Stealth");
+        MenuItem miImport = new MenuItem("Import Excel...");
+        MenuItem miTemplate = new MenuItem("Save Import Template...");
         MenuItem miH2   = new MenuItem("Open H2 Console");
         MenuItem miExit = new MenuItem("Exit");
 
         menu.add(miShow);
         menu.add(miHide);
+        menu.addSeparator();
+        menu.add(miImport);
+        menu.add(miTemplate);
         menu.addSeparator();
         menu.add(miH2);
         menu.addSeparator();
@@ -53,7 +56,6 @@ public final class TrayManager {
         trayIcon = new TrayIcon(image, "Memorizer", menu);
         trayIcon.setImageAutoSize(true);
 
-        // ---- use FX thread for UI ops ----
         miShow.addActionListener(e -> Platform.runLater(() -> {
             java.util.Optional<com.memorizer.service.StudyService.CardView> opt = study.nextCard();
             if (opt.isPresent()) {
@@ -65,13 +67,17 @@ public final class TrayManager {
             }
         }));
 
-
         miHide.addActionListener(e -> Platform.runLater(stealthStage::hide));
+
+        miImport.addActionListener(e -> doImportExcel());
+        miTemplate.addActionListener(e -> saveTemplate());
+
         miH2.addActionListener(openH2());
         miExit.addActionListener(e -> {
             H2ConsoleServer.stop();
             Platform.runLater(stealthStage::close);
             tray.remove(trayIcon);
+            bg.shutdownNow();
             System.exit(0);
         });
 
@@ -79,6 +85,41 @@ public final class TrayManager {
             tray.add(trayIcon);
         } catch (AWTException ex) {
             throw new RuntimeException("Failed to add tray icon", ex);
+        }
+    }
+
+    private void doImportExcel() {
+        FileDialog fd = new FileDialog((Frame) null, "Import Excel (.xlsx/.xls)", FileDialog.LOAD);
+        fd.setFile("*.xlsx;*.xls");
+        fd.setVisible(true);
+        String file = fd.getFile();
+        String dir = fd.getDirectory();
+        if (file == null || dir == null) return;
+        File f = new File(dir, file);
+
+        trayIcon.displayMessage("Memorizer", "Importing " + f.getName() + "...", TrayIcon.MessageType.INFO);
+        bg.submit(() -> {
+            ExcelImportService.Report rpt = importer.importFile(f);
+            trayIcon.displayMessage("Import Result",
+                    rpt.message + "\n" + rpt.toString(),
+                    "OK".equals(rpt.message) ? TrayIcon.MessageType.INFO : TrayIcon.MessageType.WARNING);
+        });
+    }
+
+    private void saveTemplate() {
+        FileDialog fd = new FileDialog((Frame) null, "Save Import Template (.xlsx)", FileDialog.SAVE);
+        fd.setFile("import_template.xlsx");
+        fd.setVisible(true);
+        String file = fd.getFile();
+        String dir = fd.getDirectory();
+        if (file == null || dir == null) return;
+        File out = new File(dir, file);
+        try {
+            templater.saveTemplate(out);
+            trayIcon.displayMessage("Memorizer", "Template saved: " + out.getAbsolutePath(),
+                    TrayIcon.MessageType.INFO);
+        } catch (Exception ex) {
+            trayIcon.displayMessage("Template Error", ex.getMessage(), TrayIcon.MessageType.ERROR);
         }
     }
 

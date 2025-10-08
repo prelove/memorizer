@@ -68,6 +68,21 @@ public class CardRepository {
         }
     }
 
+    /** Create a fresh card for a note with default ease and status=new. */
+    public long insertForNote(long noteId) {
+        try (PreparedStatement ps = Database.get().prepareStatement(
+                "INSERT INTO card(note_id, ease, status) VALUES (?, 2.5, 0)", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setLong(1, noteId);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) return rs.getLong(1);
+                throw new RuntimeException("insert card: no generated key");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("insertForNote failed", e);
+        }
+    }
+    
     private Card map(ResultSet rs) throws SQLException {
         Card c = new Card();
         c.id = rs.getLong(1);
