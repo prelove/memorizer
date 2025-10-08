@@ -1,0 +1,10 @@
+2025-10-08 19:58:58.899 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-08 19:58:59.339 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-08 19:58:59.340 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-08 19:58:59.422 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.025s)
+2025-10-08 19:58:59.444 INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+2025-10-08 19:58:59.514 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": << Empty Schema >>
+2025-10-08 19:58:59.526 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "1 - init"
+2025-10-08 19:58:59.574 INFO  o.f.core.internal.command.DbMigrate - Successfully applied 1 migration to schema "PUBLIC", now at version v1 (execution time 00:00.072s)
+2025-10-08 19:58:59.581 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/
+2025-10-08 19:59:00.091 INFO  com.memorizer.app.MainApp - Memorizer started. Use tray menu to show/hide stealth banner.
