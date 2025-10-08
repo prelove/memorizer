@@ -35,6 +35,15 @@ public final class TrayActions {
             if (trayIconRef != null) trayIconRef.displayMessage("Memorizer", "No cards.", TrayIcon.MessageType.INFO);
         }
     }
+    
+    public static void openH2Console() {
+        com.memorizer.app.H2ConsoleServer.startIfEnabled();
+        String url = "http://127.0.0.1:" + com.memorizer.app.Config.get("app.h2.console.port", "8082") + "/";
+        boolean ok = com.memorizer.util.Browse.open(url);
+        if (!ok && trayIconRef != null) {
+            trayIconRef.displayMessage("H2 Console", "Open " + url + " in your browser.", TrayIcon.MessageType.INFO);
+        }
+    }
 
     public static void openImportDialog() {
         FileDialog fd = new FileDialog((Frame) null, "Import Excel (.xlsx/.xls)", FileDialog.LOAD);

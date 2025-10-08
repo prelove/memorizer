@@ -122,3 +122,52 @@ Feature not supported: "-webLocalhost" [50100-200]
 2025-10-08 21:18:41.027 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
 2025-10-08 21:20:41.030 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
 2025-10-08 21:21:41.032 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:24:44.904 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-08 21:24:49.382 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-08 21:24:49.383 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-08 21:24:49.530 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.067s)
+2025-10-08 21:24:49.565 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
+2025-10-08 21:24:49.571 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-08 21:24:49.577 WARN  com.memorizer.app.H2ConsoleServer - Failed to start H2 Console: org.h2.jdbc.JdbcSQLFeatureNotSupportedException: 機能はサポートされていません: "-webLocalhost"
+Feature not supported: "-webLocalhost" [50100-200]
+2025-10-08 21:24:49.776 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-08 21:24:50.052 INFO  com.memorizer.app.MainApp - Memorizer started. Use tray menu to show/hide stealth banner.
+2025-10-08 21:24:54.779 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:26:28.605 INFO  com.memorizer.app.Scheduler - Scheduler resumed.
+2025-10-08 21:27:54.784 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:28:54.794 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:30:54.795 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:32:54.797 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:33:54.798 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:34:54.799 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:35:54.802 INFO  com.memorizer.app.Scheduler - No due/new cards. Will try later.
+2025-10-08 21:37:20.478 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-08 21:37:25.309 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-08 21:37:25.311 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-08 21:37:25.444 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.066s)
+2025-10-08 21:37:25.473 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
+2025-10-08 21:37:25.478 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-08 21:37:25.483 WARN  com.memorizer.app.H2ConsoleServer - Failed to start H2 Console: org.h2.jdbc.JdbcSQLFeatureNotSupportedException: 機能はサポートされていません: "-webLocalhost"
+Feature not supported: "-webLocalhost" [50100-200]
+2025-10-08 21:37:25.782 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-08 21:37:26.045 INFO  com.memorizer.app.MainApp - Memorizer started. Use tray menu to show/hide stealth banner.
+2025-10-08 21:45:17.837 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-08 21:45:22.297 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-08 21:45:22.298 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-08 21:45:22.402 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.055s)
+2025-10-08 21:45:22.430 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
+2025-10-08 21:45:22.436 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-08 21:45:22.443 WARN  com.memorizer.app.H2ConsoleServer - Failed to start H2 Console: org.h2.jdbc.JdbcSQLFeatureNotSupportedException: 機能はサポートされていません: "-webLocalhost"
+Feature not supported: "-webLocalhost" [50100-200]
+2025-10-08 21:45:22.635 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-08 21:45:22.860 INFO  com.memorizer.app.MainApp - Memorizer started. Use tray menu to show/hide stealth banner.
+2025-10-08 21:49:46.622 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-08 21:49:51.228 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-08 21:49:51.229 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-08 21:49:51.327 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.046s)
+2025-10-08 21:49:51.355 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
+2025-10-08 21:49:51.360 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-08 21:49:51.363 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
+2025-10-08 21:49:51.370 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
+2025-10-08 21:49:51.552 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-08 21:49:51.920 INFO  com.memorizer.app.MainApp - Memorizer started. Use tray menu to show/hide stealth banner.

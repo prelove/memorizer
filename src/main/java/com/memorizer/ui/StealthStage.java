@@ -26,6 +26,11 @@ public class StealthStage extends Stage {
     private final Label frontLabel = new Label();
     private final Label backLabel  = new Label();
     private boolean showingFront = true;
+    
+    private final Label debugLabel = new Label(); // 放在右侧小字显示
+    private boolean debugEnabled = Boolean.parseBoolean(
+            com.memorizer.app.Config.get("app.debug.srs", "false"));
+
 
     private StudyService study;
     
@@ -51,14 +56,19 @@ public class StealthStage extends Stage {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-
+        
+        debugLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 11px;");
+        if (!debugEnabled) debugLabel.setVisible(false);
+        
         HBox bar = new HBox(12,
                 new Label("Card:"),
                 frontLabel,
                 backLabel,
                 spacer,
+                debugLabel,  // <--- 新增
                 flip, again, hard, good, easy, close
         );
+        
         bar.setPadding(new Insets(8, 12, 8, 12));
         bar.setStyle("-fx-background-color: rgba(30,30,30,0.92); -fx-text-fill: white; -fx-background-radius: 10;");
         frontLabel.setStyle("-fx-text-fill: white;");
@@ -95,6 +105,12 @@ public class StealthStage extends Stage {
         });
     }
     
+    public void setDebugText(String txt) {
+        if (debugEnabled) {
+            debugLabel.setText(txt == null ? "" : txt);
+        }
+    }
+    
     public void showAndFocus() {
         if (!isShowing()) {
             show();
@@ -102,7 +118,6 @@ public class StealthStage extends Stage {
         toFront();
         requestFocus();
     }
-
 
     public void bindStudy(StudyService study) {
         this.study = study;
@@ -114,6 +129,7 @@ public class StealthStage extends Stage {
         showingFront = true;
         frontLabel.setVisible(true);
         backLabel.setVisible(false);
+        setDebugText(null); // 清空，或由上层传入
     }
 
     private void toggleFace() {

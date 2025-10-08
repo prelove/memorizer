@@ -77,16 +77,29 @@ public class Scheduler {
 
     private void tick() {
         try {
+            java.util.Optional<com.memorizer.service.StudyService.CardView> v;
+
+            boolean forceWhenEmpty = Boolean.parseBoolean(
+                    com.memorizer.app.Config.get("app.study.force-show-when-empty", "true"));
+
             if (!paused) {
-                java.util.Optional<StudyService.CardView> v = study.nextCard();
+                if (forceWhenEmpty) {
+                    // 优先正常 due/new，否则兜底一张，也让用户保持“看到东西”
+                    v = study.nextCard();
+                    if (!v.isPresent()) v = study.currentOrNextOrFallback();
+                } else {
+                    v = study.nextCard();
+                }
+
                 if (v.isPresent()) {
-                    StudyService.CardView cv = v.get();
-                    Platform.runLater(() -> {
+                    com.memorizer.service.StudyService.CardView cv = v.get();
+                    javafx.application.Platform.runLater(() -> {
                         stealth.showCard(cv.front, cv.back);
                         stealth.showAndFocus();
                     });
                 } else {
-                    log.info("No due/new cards. Will try later.");
+                    log.info("No cards to show (due/new empty{}).",
+                            forceWhenEmpty ? ", fallback disabled" : "");
                 }
             } else {
                 log.debug("tick skipped (paused).");
@@ -96,7 +109,7 @@ public class Scheduler {
         } finally {
             long delayMin = nextDelayMinutes();
             synchronized (this) {
-                future = ses.schedule(this::tick, delayMin, TimeUnit.MINUTES);
+                future = ses.schedule(this::tick, delayMin, java.util.concurrent.TimeUnit.MINUTES);
             }
         }
     }

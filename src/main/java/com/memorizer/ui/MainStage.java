@@ -68,7 +68,7 @@ public class MainStage extends Stage {
         MenuItem miTemplate = new MenuItem("Save Import Template...");
         miTemplate.setOnAction(e -> com.memorizer.app.TrayActions.saveTemplateDialog());
         MenuItem miH2 = new MenuItem("Open H2 Console");
-        miH2.setOnAction(e -> H2ConsoleServer.startIfEnabled());
+        miH2.setOnAction(e -> com.memorizer.app.TrayActions.openH2Console());
         MenuItem miExit = new MenuItem("Exit");
         miExit.setOnAction(e -> {
             // delegate to tray exit (if any), else System.exit
