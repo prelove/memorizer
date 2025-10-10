@@ -21,6 +21,13 @@ This file is the **authoritative task list and spec** for improving the stealth 
 
 ---
 
+## Context Budget Rules
+- If context remaining < 20% OR diff > 120 lines:
+  -> STOP and run CHECKPOINT PROTOCOL v1 (summary + touched files + unified diff + next steps).
+- Always implement per-file with focus; do not modify multiple files in one run.
+- Each run must be commit-safe: code compiles and tests pass where applicable.
+---
+
 ## 1) Repository Layout (reference)
 
 ```

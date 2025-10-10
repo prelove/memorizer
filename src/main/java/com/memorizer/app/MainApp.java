@@ -42,6 +42,8 @@ public class MainApp extends Application {
 
         stealthStage = new StealthStage();                  // it will use owner if enabled
         studyService = new StudyService();
+        com.memorizer.service.PlanService planService = new com.memorizer.service.PlanService();
+        studyService.bindPlan(planService);
         stealthStage.bindStudy(studyService);
 
         scheduler = new Scheduler(studyService, stealthStage);
@@ -53,6 +55,7 @@ public class MainApp extends Application {
         AppContext.setMain(mainStage);
 
         trayManager = new TrayManager(stealthStage, mainStage, studyService, scheduler);
+        AppContext.setTray(trayManager);
         log.info("Memorizer started.");
     }
 

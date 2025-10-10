@@ -13,9 +13,17 @@
   -fx-font-weight: 600;
   -fx-font-size: 15px;
 }
+.front.kind-due { -fx-text-fill: #d7e8ff; }
+.front.kind-leech { -fx-text-fill: #ffd0d0; }
+.front.kind-new { -fx-text-fill: #c7f3e6; }
+.front.kind-chal { -fx-text-fill: #ead6ff; }
 .back {
   -fx-text-fill: #e8e8e8;
 }
+.back.kind-due { -fx-text-fill: #d7e8ff; }
+.back.kind-leech { -fx-text-fill: #ffd0d0; }
+.back.kind-new { -fx-text-fill: #c7f3e6; }
+.back.kind-chal { -fx-text-fill: #ead6ff; }
 .reading {
   -fx-text-fill: #cfd3d7;
   -fx-font-size: 12px;
@@ -27,6 +35,10 @@
   -fx-padding: 2 8 2 8;
   -fx-background-radius: 12;
 }
+.pos-pill.kind-due { -fx-background-color: #283a5b; -fx-text-fill: #cfe4ff; }
+.pos-pill.kind-leech { -fx-background-color: #5a2d2d; -fx-text-fill: #ffd7d7; }
+.pos-pill.kind-new { -fx-background-color: #1f473b; -fx-text-fill: #bff0df; }
+.pos-pill.kind-chal { -fx-background-color: #3b2a4d; -fx-text-fill: #e0c9ff; }
 .batch-info {
   -fx-text-fill: #bdbdbd;
   -fx-font-size: 11px;

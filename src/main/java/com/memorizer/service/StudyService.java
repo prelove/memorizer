@@ -19,6 +19,8 @@ public class StudyService {
     private long showingCardId = -1;
     private long showStartedAtMs = 0;
 
+    private com.memorizer.service.PlanService plan;
+
     public static class CardView {
         private long cardId;
         private String front;
@@ -28,6 +30,7 @@ public class StudyService {
         private java.util.List<String> examples;
         private java.util.List<String> tags;
         private String deckName;
+        private Integer planKind;
 
         // getters
         public long getCardId() { return cardId; }
@@ -38,12 +41,80 @@ public class StudyService {
         public java.util.List<String> getExamples() { return examples; }
         public java.util.List<String> getTags() { return tags; }
         public String getDeckName() { return deckName; }
+        public Integer getPlanKind() { return planKind; }
 
         // 可选：builder 或全参构造器
     }
 
+    public void bindPlan(com.memorizer.service.PlanService p) { this.plan = p; }
+    public void rebuildTodayPlan() {
+        if (plan != null) plan.buildToday();
+    }
 
-    /** Build a view for the given card id (and set state as showing). */
+    public void appendChallengeBatch(int size) {
+        if (plan != null) plan.appendChallengeBatch(size);
+    }
+
+    public com.memorizer.service.PlanService.Counts planCounts() {
+        try {
+            return plan != null ? plan.todayCounts() : new com.memorizer.service.PlanService.Counts();
+        } catch (Exception e) {
+            return new com.memorizer.service.PlanService.Counts();
+        }
+    }
+
+    public java.util.List<com.memorizer.service.PlanService.PlanRow> planListToday() {
+        try { return plan != null ? plan.listToday() : java.util.Collections.emptyList(); }
+        catch (Exception e) { return java.util.Collections.emptyList(); }
+    }
+
+    /** Mark current card skipped in plan, without rating. */
+    public void skipCurrent() {
+        if (showingCardId <= 0) return;
+        try {
+            if (plan != null) plan.markSkipped(showingCardId);
+            com.memorizer.app.TrayManager tm = com.memorizer.app.AppContext.getTray();
+            if (tm != null) tm.updatePlanTooltip();
+        } catch (Exception ignored) {}
+        showingCardId = -1;
+        showStartedAtMs = 0;
+    }
+
+    public void rollRemainingToday() {
+        try { if (plan != null) plan.rollRemainingToday(); } catch (Exception ignored) {}
+    }
+
+    public void clearChallengeToday() {
+        try { if (plan != null) plan.clearChallengeToday(); } catch (Exception ignored) {}
+    }
+
+    /** Preview the next planned card summary: Deck • Front. */
+    public java.util.Optional<String> previewNextFromPlanFront() {
+        try {
+            if (plan == null) return java.util.Optional.empty();
+            java.util.Optional<Long> oc = plan.nextFromPlan();
+            if (!oc.isPresent()) return java.util.Optional.empty();
+            Card c = loadById(oc.get());
+            if (c == null) return java.util.Optional.empty();
+            java.util.Optional<com.memorizer.model.Note> on = noteRepo.findById(c.noteId);
+            if (!on.isPresent()) return java.util.Optional.empty();
+            String front = on.get().front == null ? "" : on.get().front;
+            String deck = "";
+            if (on.get().deckId != null) {
+                try {
+                    String dn = new com.memorizer.db.DeckRepository().findNameById(on.get().deckId);
+                    if (dn != null && !dn.isEmpty()) deck = dn;
+                } catch (Exception ignored) {}
+            }
+            String summary = (deck.isEmpty()?"":deck + " • ") + front;
+            if (summary.isEmpty()) return java.util.Optional.empty();
+            return java.util.Optional.of(summary);
+        } catch (Exception e) {
+            return java.util.Optional.empty();
+        }
+    }
+
+/** Build a view for the given card id (and set state as showing). */
     public Optional<CardView> currentOrNextOrFallback() {
         // 1) reopen current if any
         if (showingCardId > 0) {
@@ -72,6 +143,21 @@ public class StudyService {
         return assembleView(c, on.get());
     }
 
+    /** Public: build a CardView for a specific card id and set as current. */
+    public Optional<CardView> viewCardById(long cardId) {
+        try {
+            Card c = loadById(cardId);
+            if (c == null) return Optional.empty();
+            Optional<Note> on = noteRepo.findById(c.noteId);
+            if (!on.isPresent()) return Optional.empty();
+            showingCardId = cardId;
+            showStartedAtMs = System.currentTimeMillis();
+            return Optional.of(assembleView(c, on.get()));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
     /** Build rich CardView by joining Note (+optional Deck) and splitting examples/tags. */
     private CardView assembleView(Card card, com.memorizer.model.Note note) {
         CardView v = new CardView();
@@ -88,6 +174,7 @@ public class StudyService {
                 v.deckName = dn;
             } catch (Exception ignored) {}
         }
+        try { if (plan != null) v.planKind = plan.kindForToday(card.id).orElse(null); } catch (Exception ignored) {}
         return v;
     }
     
@@ -109,7 +196,26 @@ public class StudyService {
         return splitList2(s);
     }
 
-    /** Try next due/new; if none, fallback to any available card. */
+        /** Prefer pulling from today's plan; build if empty; fallback to queue if allowed. */
+    public java.util.Optional<CardView> nextFromPlanPreferred(boolean allowFallback) {
+        try {
+            if (plan != null) {
+                java.util.Optional<java.lang.Long> ocid = plan.nextFromPlan();
+                if (!ocid.isPresent()) {
+                    plan.buildToday();
+                    ocid = plan.nextFromPlan();
+                }
+                if (ocid.isPresent()) {
+                    CardView v = viewOf(ocid.get());
+                    return java.util.Optional.ofNullable(v);
+                }
+            }
+        } catch (Exception ignored) {}
+        if (allowFallback) return nextCardOrFallback();
+        return java.util.Optional.empty();
+    }
+
+/** Try next due/new; if none, fallback to any available card. */
     public Optional<CardView> nextCardOrFallback() {
         Optional<CardView> o = nextCard();
         if (o.isPresent()) return o;
@@ -186,6 +292,13 @@ public class StudyService {
 
         int latency = (int) Math.max(0, System.currentTimeMillis() - showStartedAtMs);
         cardRepo.insertReview(c.id, rating.value, prevInterval, r.nextIntervalDays, c.ease, latency);
+
+        // mark plan done if present
+        try {
+            if (plan != null) plan.markDone(showingCardId);
+            com.memorizer.app.TrayManager tm = com.memorizer.app.AppContext.getTray();
+            if (tm != null) tm.updatePlanTooltip();
+        } catch (Exception ignored) {}
 
         // reset
         showingCardId = -1;

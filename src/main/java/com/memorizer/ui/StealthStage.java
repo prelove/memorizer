@@ -47,10 +47,14 @@ public class StealthStage extends Stage {
  private final Label backLabel  = new Label();
  private final Label readingLabel = new Label();
  private final Label posLabel = new Label();
+ private int flipPressCount = 0;
+ private boolean readingShown = false;
+ private final Label kindLabel = new Label();
 
  private final VBox examplesBox = new VBox(2);    // 简易例句容器（滚动动效下步做）
  private final Label todayLabel = new Label("Today: 0/0");
  private final ProgressBar todayProgress = new ProgressBar(0);
+ private final Label planLabel = new Label("");
 
  private boolean showingFront = true;
  private long currentCardId = -1;
@@ -111,7 +115,7 @@ public class StealthStage extends Stage {
      btn4.setTooltip(new Tooltip("Easy (4)"));
 
      // 评分按钮动作（沿用你的 rateAndHide）
-     btnFlip.setOnAction(e -> toggleFace());
+     btnFlip.setOnAction(e -> flipPressed());
      btn1.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.AGAIN));
      btn2.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.HARD));
      btn3.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.GOOD));
@@ -125,32 +129,49 @@ public class StealthStage extends Stage {
     // 根容器
     root = new BorderPane();
     root.getStyleClass().add("stealth-root");
-     setScene(new Scene(root));
-     try {
-         java.net.URL css = StealthStage.class.getResource("/stealth.css");
-         if (css != null) getScene().getStylesheets().add(css.toExternalForm());
-     } catch (Exception ignored) {}
+    setScene(new Scene(root));
     try {
         java.net.URL css = StealthStage.class.getResource("/stealth.css");
         if (css != null) getScene().getStylesheets().add(css.toExternalForm());
     } catch (Exception ignored) {}
 
+    // Mouse interactions: single-click flips, double-click toggles reading
+    installClickHandlers();
+
      // 键盘
      getScene().setOnKeyPressed(ev -> {
          switch (ev.getCode()) {
              case SPACE:
-             case ENTER: toggleFace(); break;
+             case ENTER: flipPressed(); break;
              case DIGIT1: rateAndHide(com.memorizer.model.Rating.AGAIN); break;
              case DIGIT2: rateAndHide(com.memorizer.model.Rating.HARD); break;
              case DIGIT3: rateAndHide(com.memorizer.model.Rating.GOOD); break;
              case DIGIT4: rateAndHide(com.memorizer.model.Rating.EASY); break;
              case ESCAPE: hideWithSnooze(); break;
+            case S: skipCurrent(); break;
              case M: toggleMode(); break; // 新增：切换 Normal/Mini
              default: break;
          }
      });
 
      applyMode(currentMode);
+ }
+
+ private void installClickHandlers() {
+     javafx.event.EventHandler<javafx.scene.input.MouseEvent> h = ev -> {
+         if (ev.getClickCount() >= 2) {
+             // double-click: toggle reading visibility and show back face
+             readingShown = !readingShown;
+             showingFront = false;
+             updateFaceVisibility();
+         } else {
+             // single click: flip front/back
+             showingFront = !showingFront;
+             updateFaceVisibility();
+         }
+     };
+     frontLabel.setOnMouseClicked(h);
+     backLabel.setOnMouseClicked(h);
  }
 
  // === 模式切换 ===
@@ -216,10 +237,12 @@ public class StealthStage extends Stage {
      backLabel.setAlignment(Pos.CENTER_LEFT);
      readingLabel.setAlignment(Pos.CENTER_LEFT);
 
-     // 标签列（词性）
-     VBox tags = new VBox(posLabel);
-     tags.setAlignment(Pos.CENTER);
-     tags.setPadding(new Insets(6, 10, 6, 10));
+    // 标签列（词性 + 计划类型）
+    kindLabel.getStyleClass().add("pos-pill");
+    kindLabel.setVisible(false);
+    VBox tags = new VBox(6, posLabel, kindLabel);
+    tags.setAlignment(Pos.CENTER);
+    tags.setPadding(new Insets(6, 10, 6, 10));
 
      // 例句区（先静态展示若干行）
      examplesBox.setPadding(new Insets(6, 10, 6, 10));
@@ -237,7 +260,8 @@ public class StealthStage extends Stage {
      right.setMinWidth(220);
 
      // 当日进度
-     VBox today = new VBox(4, todayLabel, todayProgress);
+     planLabel.getStyleClass().add("batch-info");
+    VBox today = new VBox(4, todayLabel, todayProgress, planLabel);
      today.setAlignment(Pos.CENTER);
      today.setPadding(new Insets(6, 10, 6, 10));
 
@@ -255,36 +279,35 @@ public class StealthStage extends Stage {
 
  // === Mini 布局 ===
  private Pane buildMiniRoot() {
-	    Region leftSpring = new Region();
-	    Region rightSpring = new Region();
-	    HBox.setHgrow(leftSpring, Priority.ALWAYS);
-	    HBox.setHgrow(rightSpring, Priority.ALWAYS);
+        Region leftSpring = new Region();
+        Region rightSpring = new Region();
+        HBox.setHgrow(leftSpring, Priority.ALWAYS);
+        HBox.setHgrow(rightSpring, Priority.ALWAYS);
 
-	    // Mini：只显示正/背面主文本，不显示 reading/pos/examples
-	    readingLabel.setVisible(false);
-	    posLabel.setVisible(false);
-	    examplesBox.getChildren().clear();
+        // Mini：显示正/背面与发音（发音根据翻面可见），不显示 pos/examples
+        posLabel.setVisible(false);
+        examplesBox.getChildren().clear();
 
-	    HBox bar = new HBox(10,
-	            btnEdit,
-	            batchInfo,
-	            leftSpring,                // 左弹簧
-	            frontLabel,                // 主文本在中间
-	            rightSpring,               // 右弹簧
-	            btnFlip,
-	            new HBox(6, btn1, btn2, btn3, btn4),
-	            todayLabel
-	    );
-	    bar.setAlignment(Pos.CENTER);
-	    bar.setPadding(new Insets(6, 10, 6, 10));
+        HBox backRow = new HBox(6, readingLabel, backLabel);
+        backRow.setAlignment(Pos.CENTER);
+        VBox miniMain = new VBox(0, frontLabel, backRow);
+        miniMain.setAlignment(Pos.CENTER);
+        HBox.setHgrow(miniMain, Priority.SOMETIMES);
 
-	    // 关键：让主文本尽可能居中且可被压缩
-	    frontLabel.setAlignment(Pos.CENTER);
-	    frontLabel.setMaxWidth(Double.MAX_VALUE);
-	    HBox.setHgrow(frontLabel, Priority.SOMETIMES);
-
-	    return bar;
-	}
+        HBox bar = new HBox(10,
+                btnEdit,
+                batchInfo,
+                leftSpring,
+                miniMain,
+                rightSpring,
+                btnFlip,
+                new HBox(6, btn1, btn2, btn3, btn4),
+                todayLabel
+        );
+        bar.setAlignment(Pos.CENTER);
+        bar.setPadding(new Insets(6, 10, 6, 10));
+        return bar;
+    }
 
 
  public void bindStudy(StudyService study) {
@@ -299,12 +322,41 @@ public class StealthStage extends Stage {
 	    frontLabel.setText(v.getFront() != null ? v.getFront() : "");
 	    backLabel.setText(v.getBack() != null ? v.getBack() : "");
 	    readingLabel.setText(v.getReading() != null ? v.getReading() : "");
-	    posLabel.setText(v.getPos() != null ? v.getPos() : "");
+    posLabel.setText(v.getPos() != null ? v.getPos() : "");
+    // map plan kind to badge text + css class
+    String ktxt = null;
+    String kclass = null;
+    if (v.getPlanKind() != null) {
+        switch (v.getPlanKind()) {
+            case 0: ktxt = "DUE"; kclass = "kind-due"; break;
+            case 1: ktxt = "LEECH"; kclass = "kind-leech"; break;
+            case 2: ktxt = "NEW"; kclass = "kind-new"; break;
+            case 3: ktxt = "CHAL"; kclass = "kind-chal"; break;
+            default: break;
+        }
+    }
+    // clear previous kind-* classes
+    kindLabel.getStyleClass().removeAll("kind-due","kind-leech","kind-new","kind-chal");
+    frontLabel.getStyleClass().removeAll("kind-due","kind-leech","kind-new","kind-chal");
+    backLabel.getStyleClass().removeAll("kind-due","kind-leech","kind-new","kind-chal");
+    if (ktxt != null && !ktxt.isEmpty()) {
+        kindLabel.setText(ktxt);
+        if (kclass != null) {
+            kindLabel.getStyleClass().add(kclass);
+            frontLabel.getStyleClass().add(kclass);
+            backLabel.getStyleClass().add(kclass);
+        }
+        kindLabel.setVisible(true);
+    } else {
+        kindLabel.setText("");
+        kindLabel.setVisible(false);
+    }
 	    setExamples(v.getExamples());
 
 	    showingFront = true;
-	    frontLabel.setVisible(true);
-	    backLabel.setVisible(false);
+        flipPressCount = 0;
+        readingShown = false;
+        updateFaceVisibility();
 
 	    updateBatchInfoLabel();
 	    refreshTodayProgress();
@@ -366,6 +418,13 @@ public class StealthStage extends Stage {
      try { done = new StatsRepository().load().todayReviews; } catch (Exception ignored) {}
      todayLabel.setText("Today: " + done + "/" + target);
      todayProgress.setProgress(target > 0 ? Math.min(1.0, done / (double) target) : 0);
+     // plan counts
+     try {
+         com.memorizer.service.PlanService.Counts pc = (study != null) ? study.planCounts() : null;
+         String next = (study != null) ? study.previewNextFromPlanFront().orElse("") : "";
+         if (next.length() > 24) next = next.substring(0,24) + "…";
+         if (pc != null) planLabel.setText("Plan " + pc.pending + "/" + pc.total + (next.isEmpty()?"":" — Next: " + next));
+     } catch (Exception ignored) {}
  }
 
  // === 位置/窗口标志（你在 S1 已加入，保留） ===
@@ -458,7 +517,48 @@ public class StealthStage extends Stage {
      endBatchAndHide();
  }
  
- private void toggleFace() {
+ 
+
+ private void flipPressed() {
+     // single press toggles front/back
+     showingFront = !showingFront;
+     flipPressCount++;
+     // every second press toggles pronunciation visibility
+     if ((flipPressCount % 2) == 0) {
+         readingShown = !readingShown;
+     }
+     updateFaceVisibility();
+ }
+ 
+ private void updateFaceVisibility() {
+     if (showingFront) {
+         frontLabel.setVisible(true);
+         backLabel.setVisible(false);
+         readingLabel.setVisible(false);
+     } else {
+         frontLabel.setVisible(false);
+         backLabel.setVisible(true);
+         readingLabel.setVisible(readingShown);
+     }
+ }
+
+ public void skipCurrent() {
+     if (study != null) {
+         long lastId = currentCardId;
+         study.skipCurrent();
+         if (inBatch) {
+             remainingInBatch--;
+             boolean allowFallback = Boolean.parseBoolean(com.memorizer.app.Config.get("app.study.force-show-when-empty", "true"));
+             if (remainingInBatch > 0) {
+                 java.util.Optional<com.memorizer.service.StudyService.CardView> next =
+                         study.nextForBatch(lastId, allowFallback);
+                 if (next.isPresent()) { showCardView(next.get()); return; }
+             }
+         }
+     }
+     endBatchAndHide();
+ }
+private void toggleFace() {
      showingFront = !showingFront;
      frontLabel.setVisible(showingFront);
      backLabel.setVisible(!showingFront);

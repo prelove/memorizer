@@ -12,11 +12,31 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.control.TableRow;
 import javafx.stage.Stage;
+import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.List;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.cell.PropertyValueFactory;
 
 public class MainStage extends Stage {
     private final StudyService study;
     private final Scheduler scheduler;
+    private final ObservableList<com.memorizer.service.PlanService.PlanRow> planRows = FXCollections.observableArrayList();
+    private java.util.List<com.memorizer.service.PlanService.PlanRow> fullPlan = new java.util.ArrayList<>();
+    private int planPageSize = 25;
+    private Pagination planPagination;
+    private TableView<com.memorizer.service.PlanService.PlanRow> planTable;
+    private TableColumn<com.memorizer.service.PlanService.PlanRow, Integer> colOrder;
+    private TableColumn<com.memorizer.service.PlanService.PlanRow, String> colKind;
+    private TableColumn<com.memorizer.service.PlanService.PlanRow, String> colStatus;
+    private TableColumn<com.memorizer.service.PlanService.PlanRow, String> colDeck;
+    private TableColumn<com.memorizer.service.PlanService.PlanRow, String> colFront;
+
 
     // Dashboard labels
     private final Label lblDue = new Label("-");
@@ -25,6 +45,10 @@ public class MainStage extends Stage {
     private final Label lblTotalNotes = new Label("-");
     private final Label lblTodayReviews = new Label("-");
     private final Label lblScheduler = new Label("-");
+    // Plan stats
+    private final Label lblPlanPending = new Label("-");
+    private final Label lblPlanDone = new Label("-");
+    private final Label lblPlanTotal = new Label("-");
 
     // Study tab
     private final Label lblFront = new Label();
@@ -110,11 +134,125 @@ public class MainStage extends Stage {
         Tab tabStudy = new Tab("Study", buildStudyPane());
         tabStudy.setClosable(false);
 
-        tabs.getTabs().addAll(tabDash, tabStudy);
+        planPageSize = Config.getInt("app.ui.plan.page-size", 25);
+        Tab tabPlan = new Tab("Plan", buildPlanPane());
+        tabPlan.setClosable(false);
+        tabs.getTabs().addAll(tabDash, tabStudy, tabPlan);
         return tabs;
     }
 
-    private Pane buildDashboard() {
+    private Pane buildPlanPane() {
+        BorderPane root = new BorderPane();
+        planTable = new TableView<>(planRows);
+
+        colOrder = new TableColumn<>("Order");
+        colOrder.setCellValueFactory(new PropertyValueFactory<>("orderNo"));
+        colOrder.setPrefWidth(60);
+
+        colKind = new TableColumn<>("Kind");
+        colKind.setCellValueFactory(c -> {
+            int k = c.getValue().getKind();
+            String s = k==0?"DUE":k==1?"LEECH":k==2?"NEW":k==3?"CHAL":String.valueOf(k);
+            return javafx.beans.property.SimpleStringProperty.stringExpression(new javafx.beans.property.SimpleStringProperty(s));
+        });
+        colKind.setPrefWidth(70);
+        colKind.setCellFactory(col -> new TableCell<com.memorizer.service.PlanService.PlanRow, String>(){
+            @Override protected void updateItem(String item, boolean empty){
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); setStyle(""); return; }
+                setText(item);
+                com.memorizer.service.PlanService.PlanRow r = (com.memorizer.service.PlanService.PlanRow) getTableRow().getItem();
+                if (r == null) { setStyle(""); return; }
+                int k = r.getKind();
+                String color = k==0?"#d7e8ff":k==1?"#ffd0d0":k==2?"#c7f3e6":"#ead6ff";
+                setStyle("-fx-text-fill: "+color+";");
+            }
+        });
+
+        colStatus = new TableColumn<>("Status");
+        colStatus.setCellValueFactory(c -> {
+            int st = c.getValue().getStatus();
+            String s = st==0?"PENDING":st==1?"DONE":st==2?"ROLLED":st==3?"SKIPPED":String.valueOf(st);
+            return javafx.beans.property.SimpleStringProperty.stringExpression(new javafx.beans.property.SimpleStringProperty(s));
+        });
+        colStatus.setPrefWidth(90);
+
+        colDeck = new TableColumn<>("Deck");
+        colDeck.setCellValueFactory(new PropertyValueFactory<>("deckName"));
+        colDeck.setPrefWidth(140);
+
+        colFront = new TableColumn<>("Front");
+        colFront.setCellValueFactory(new PropertyValueFactory<>("front"));
+        colFront.setPrefWidth(420);
+        colFront.setCellFactory(col -> new TableCell<com.memorizer.service.PlanService.PlanRow, String>(){
+            @Override protected void updateItem(String item, boolean empty){
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); setStyle(""); return; }
+                setText(item);
+                com.memorizer.service.PlanService.PlanRow r = (com.memorizer.service.PlanService.PlanRow) getTableRow().getItem();
+                if (r == null) { setStyle(""); return; }
+                int k = r.getKind();
+                String color = k==0?"#d7e8ff":k==1?"#ffd0d0":k==2?"#c7f3e6":"#ead6ff";
+                setStyle("-fx-text-fill: "+color+";");
+            }
+        });
+
+        planTable.getColumns().addAll(colOrder, colKind, colStatus, colDeck, colFront);
+
+        // Ensure sorting applies to the full dataset (not only the current page)
+        planTable.setSortPolicy(tv -> {
+            applyPlanPage(planPagination == null ? 0 : planPagination.getCurrentPageIndex());
+            return true;
+        });
+
+        // double-click to show this card now in banner
+        planTable.setRowFactory(tv -> {
+            TableRow<com.memorizer.service.PlanService.PlanRow> row = new TableRow<>();
+            row.setOnMouseClicked(ev -> {
+                if (ev.getClickCount() == 2 && !row.isEmpty()) {
+                    com.memorizer.service.PlanService.PlanRow r = row.getItem();
+                    java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.viewCardById(r.getCardId());
+                    if (v.isPresent()) {
+                        com.memorizer.ui.StealthStage st = com.memorizer.app.AppContext.getStealth();
+                        int batch = Config.getInt("app.study.batch-size", 1);
+                        st.startBatch(batch);
+                        st.showCardView(v.get());
+                        st.showAndFocus();
+                    }
+                }
+            });
+            return row;
+        });
+
+
+        Button btnRefresh = new Button("Refresh");
+        btnRefresh.setOnAction(e -> reloadPlan());
+        Button btnPrev = new Button("Prev");
+        Button btnNext = new Button("Next");
+        btnPrev.setOnAction(e -> changePlanPage(-1));
+        btnNext.setOnAction(e -> changePlanPage(1));
+        planPagination = new Pagination(1, 0);
+        planPagination.currentPageIndexProperty().addListener((obs,ov,nv) -> applyPlanPage(nv.intValue()));
+        HBox top = new HBox(8, btnRefresh, btnPrev, btnNext);
+        top.setPadding(new Insets(8));
+
+        root.setTop(top);
+        root.setCenter(planTable);
+        root.setBottom(new HBox(8, planPagination));
+        reloadPlan();
+        return root;
+    }
+
+    private void reloadPlan() {
+        fullPlan = study.planListToday();
+        int pages = Math.max(1, (int) Math.ceil(fullPlan.size() / (double) planPageSize));
+        planPagination.setPageCount(pages);
+        applyPlanPage(0);
+    }
+
+    
+
+private Pane buildDashboard() {
         GridPane g = new GridPane();
         g.setPadding(new Insets(16));
         g.setHgap(16);
@@ -126,6 +264,9 @@ public class MainStage extends Stage {
         g.add(new Label("Total Cards:"), 0, r); g.add(lblTotalCards, 1, r++);
         g.add(new Label("Total Notes:"), 0, r); g.add(lblTotalNotes, 1, r++);
         g.add(new Label("Today's Reviews:"), 0, r); g.add(lblTodayReviews, 1, r++);
+        g.add(new Label("Plan Pending:"), 0, r); g.add(lblPlanPending, 1, r++);
+        g.add(new Label("Plan Done:"), 0, r); g.add(lblPlanDone, 1, r++);
+        g.add(new Label("Plan Total:"), 0, r); g.add(lblPlanTotal, 1, r++);
 
         Button btnRefresh = new Button("Refresh (F5)");
         btnRefresh.setOnAction(e -> refreshStats());
@@ -190,6 +331,10 @@ public class MainStage extends Stage {
         lblTotalNotes.setText(String.valueOf(s.totalNotes));
         lblTodayReviews.setText(String.valueOf(s.todayReviews));
         lblScheduler.setText(scheduler.isPaused() ? "Paused" : "Running");
+        com.memorizer.service.PlanService.Counts pc = study.planCounts();
+        lblPlanPending.setText(String.valueOf(pc.pending));
+        lblPlanDone.setText(String.valueOf(pc.done));
+        lblPlanTotal.setText(String.valueOf(pc.total));
     }
 
     private void loadNextForStudy() {
@@ -219,4 +364,39 @@ public class MainStage extends Stage {
         study.rate(r);
         refreshStats();
     }
+
+    private void applyPlanPage(int pageIndex) {
+        if (pageIndex < 0) pageIndex = 0;
+        int pages = Math.max(1, (int) Math.ceil(fullPlan.size() / (double) planPageSize));
+        if (pageIndex >= pages) pageIndex = pages - 1;
+        if (planPagination != null) {
+            planPagination.setCurrentPageIndex(pageIndex);
+        }
+        java.util.List<TableColumn<com.memorizer.service.PlanService.PlanRow, ?>> order = new java.util.ArrayList<>(planTable.getSortOrder());
+        if (!order.isEmpty()) {
+            java.util.Comparator<com.memorizer.service.PlanService.PlanRow> cmp = null;
+            for (TableColumn<com.memorizer.service.PlanService.PlanRow, ?> tc : order) {
+                java.util.Comparator<com.memorizer.service.PlanService.PlanRow> part = null;
+                if (tc == colOrder) part = java.util.Comparator.comparingInt(com.memorizer.service.PlanService.PlanRow::getOrderNo);
+                else if (tc == colKind) part = java.util.Comparator.comparingInt(com.memorizer.service.PlanService.PlanRow::getKind);
+                else if (tc == colStatus) part = java.util.Comparator.comparingInt(com.memorizer.service.PlanService.PlanRow::getStatus);
+                else if (tc == colDeck) part = java.util.Comparator.comparing(r -> r.getDeckName() == null ? "" : r.getDeckName());
+                else if (tc == colFront) part = java.util.Comparator.comparing(r -> r.getFront() == null ? "" : r.getFront());
+                if (part != null) {
+                    if (tc.getSortType() == TableColumn.SortType.DESCENDING) part = part.reversed();
+                    cmp = (cmp == null) ? part : cmp.thenComparing(part);
+                }
+            }
+            if (cmp != null) fullPlan.sort(cmp);
+        }
+        int from = pageIndex * planPageSize;
+        int to = Math.min(fullPlan.size(), from + planPageSize);
+        planRows.setAll(fullPlan.subList(from, to));
+    }
+
+    private void changePlanPage(int delta) {
+        int idx = planPagination.getCurrentPageIndex() + delta;
+        applyPlanPage(idx);
+    }
+
 }

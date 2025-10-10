@@ -96,9 +96,19 @@ public class Scheduler {
                 return;
             }
 
-            java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.nextCard();
+            // Prefer plan-driven next; fallback based on config
             boolean forceWhenEmpty = Boolean.parseBoolean(
                     com.memorizer.app.Config.get("app.study.force-show-when-empty", "true"));
+            java.util.Optional<com.memorizer.service.StudyService.CardView> v =
+                    study.nextFromPlanPreferred(forceWhenEmpty);
+            if (!v.isPresent()) {
+                String mode = com.memorizer.app.Config.get("app.study.mode", "fixed");
+                if ("challenge".equalsIgnoreCase(mode)) {
+                    int sz = com.memorizer.app.Config.getInt("app.study.challenge-batch-size", 10);
+                    try { study.appendChallengeBatch(sz); } catch (Exception ignored) {}
+                    v = study.nextFromPlanPreferred(false);
+                }
+            }
             if (!v.isPresent() && forceWhenEmpty) v = study.currentOrNextOrFallback();
 
             if (v.isPresent()) {

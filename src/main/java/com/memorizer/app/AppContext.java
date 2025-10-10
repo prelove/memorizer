@@ -8,14 +8,17 @@ public final class AppContext {
     private static StealthStage stealth;
     private static MainStage main;
     private static Stage owner; // invisible owner for utility windows
+    private static com.memorizer.app.TrayManager tray;
 
     static void setStealth(StealthStage s){ stealth = s; }
     static void setMain(MainStage m){ main = m; }
     static void setOwner(Stage s){ owner = s; }
+    static void setTray(com.memorizer.app.TrayManager t){ tray = t; }
 
     public static StealthStage getStealth(){ return stealth; }
     public static MainStage getMain(){ return main; }
     public static Stage getOwner(){ return owner; }
+    public static com.memorizer.app.TrayManager getTray(){ return tray; }
 
     private AppContext(){}
 }

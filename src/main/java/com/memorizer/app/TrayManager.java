@@ -18,6 +18,14 @@ public final class TrayManager {
     private final MainStage mainStage;
     private final StudyService study;
     private final Scheduler scheduler;
+    private final java.util.concurrent.ScheduledExecutorService planTicker =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "plan-indicator-ticker");
+                t.setDaemon(true);
+                return t;
+            });
+    private MenuItem planSummaryItem;
+    private MenuItem planNextItem;
 
     private final MenuItem miPause = new MenuItem("Pause Reminders");
     private final MenuItem miResume = new MenuItem("Resume Reminders");
@@ -35,8 +43,23 @@ public final class TrayManager {
         PopupMenu menu = new PopupMenu();
 
         MenuItem miOpenMain = new MenuItem("Open Main Window");
+        // live plan indicators
+        planSummaryItem = new MenuItem("Plan: -/-");
+        planNextItem = new MenuItem("Next: -");
         MenuItem miShow = new MenuItem("Show Stealth Now");
         MenuItem miSnooze = new MenuItem("Snooze 10 min");
+        MenuItem miSkip = new MenuItem("Skip Current (S)");
+        Menu mStudyMode = new Menu("Study Mode");
+        CheckboxMenuItem miFixed = new CheckboxMenuItem("Fixed");
+        CheckboxMenuItem miChallenge = new CheckboxMenuItem("Challenge");
+        mStudyMode.add(miFixed); mStudyMode.add(miChallenge);
+        Menu mPlan = new Menu("Plan");
+        MenuItem miRebuild = new MenuItem("Rebuild Today");
+        MenuItem miPlanStatus = new MenuItem("Plan Status");
+        MenuItem miAppendChallenge = new MenuItem("Append Challenge Batch");
+        MenuItem miRoll = new MenuItem("Roll Remaining");
+        MenuItem miClearChal = new MenuItem("Clear Challenge");
+        mPlan.add(miRebuild); mPlan.add(miAppendChallenge); mPlan.add(miRoll); mPlan.add(miClearChal); mPlan.add(miPlanStatus);
         MenuItem miImport = new MenuItem("Import Excel...");
         MenuItem miTemplate = new MenuItem("Save Import Template...");
         MenuItem miH2   = new MenuItem("Open H2 Console");
@@ -51,6 +74,11 @@ public final class TrayManager {
         modeMenu.add(miNormal); modeMenu.add(miMini);
         menu.add(modeMenu);
         menu.addSeparator();
+        menu.add(mStudyMode);
+        menu.add(mPlan);
+        menu.add(planSummaryItem);
+        menu.add(planNextItem);
+        menu.add(miSkip);
         menu.add(miPause);
         menu.add(miResume);
         menu.add(miSnooze);
@@ -62,7 +90,7 @@ public final class TrayManager {
         menu.addSeparator();
         menu.add(miExit);
 
-        // 读取当前模式
+        // 读取当前 UI 模式
         boolean mini = "mini".equalsIgnoreCase(com.memorizer.app.Config.get("app.ui.mode","normal"));
         miMini.setState(mini); miNormal.setState(!mini);
 
@@ -92,7 +120,37 @@ public final class TrayManager {
         }));
 
         miPause.addActionListener(e -> { scheduler.pause(); updatePauseMenu(); });
+
+        // 学习模式（持久化到 Config）
+        boolean challenge = "challenge".equalsIgnoreCase(Config.get("app.study.mode", "fixed"));
+        miChallenge.setState(challenge); miFixed.setState(!challenge);
+        miFixed.addItemListener(e -> {
+            if (miFixed.getState()) { miChallenge.setState(false); Config.set("app.study.mode", "fixed"); }
+            else if (!miChallenge.getState()) miFixed.setState(true);
+        });
+        miChallenge.addItemListener(e -> {
+            if (miChallenge.getState()) { miFixed.setState(false); Config.set("app.study.mode", "challenge"); }
+            else if (!miFixed.getState()) miChallenge.setState(true);
+        });
+
+        // 计划快捷操作
+        miRebuild.addActionListener(e -> { study.rebuildTodayPlan(); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
+        miAppendChallenge.addActionListener(e -> { study.appendChallengeBatch(Config.getInt("app.study.challenge-batch-size", 10)); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
+        miRoll.addActionListener(e -> { study.rollRemainingToday(); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
+        miClearChal.addActionListener(e -> { study.clearChallengeToday(); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
+        miPlanStatus.addActionListener(e -> {
+            try {
+                com.memorizer.service.PlanService.Counts pc = study.planCounts();
+                trayIcon.displayMessage("Plan Status",
+                        "Pending: " + pc.pending + "\nDone: " + pc.done + "\nTotal: " + pc.total,
+                        TrayIcon.MessageType.INFO);
+            } catch (Exception ex) {
+                trayIcon.displayMessage("Plan Status", "Unavailable", TrayIcon.MessageType.INFO);
+            }
+        });
+
         miResume.addActionListener(e -> { scheduler.resume(); updatePauseMenu(); });
+        miSkip.addActionListener(e -> Platform.runLater(() -> { stealthStage.skipCurrent(); updatePlanMenu(planSummaryItem, planNextItem); }));
 
         miSnooze.addActionListener(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
 
@@ -107,12 +165,34 @@ public final class TrayManager {
                 if (mainStage != null) mainStage.close();
             });
             tray.remove(trayIcon);
+            // ensure background ticker is stopped to prevent leaks
+            shutdown();
             scheduler.stop();
             System.exit(0);
         });
 
         updatePauseMenu();
+        updatePlanTooltip();
+        updatePlanMenu(planSummaryItem, planNextItem);
+        planTicker.scheduleAtFixedRate(() -> {
+            try { updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); } catch (Exception ignored) {}
+        }, 60, 60, java.util.concurrent.TimeUnit.SECONDS);
+        // prime menu labels
         try { tray.add(trayIcon); } catch (AWTException ex) { throw new RuntimeException("Failed to add tray icon", ex); }
+    }
+
+    /** Stop background executors held by the tray to avoid resource leaks. */
+    public void shutdown() {
+        try { planTicker.shutdownNow(); } catch (Exception ignored) {}
+    }
+
+    public void updatePlanTooltip() {
+        try {
+            com.memorizer.service.PlanService.Counts pc = study.planCounts();
+            trayIcon.setToolTip("Memorizer — Plan " + pc.pending + "/" + pc.total);
+        } catch (Exception ignored) {
+            trayIcon.setToolTip("Memorizer");
+        }
     }
 
     private void updatePauseMenu() {
@@ -130,7 +210,21 @@ public final class TrayManager {
         };
     }
 
-    private Image loadIcon() {
+
+    private void updatePlanMenu(MenuItem miPlanSummary, MenuItem miPlanNext) {
+        try {
+            com.memorizer.service.PlanService.Counts pc = study.planCounts();
+            miPlanSummary.setLabel("Plan: " + pc.pending + "/" + pc.total);
+            String next = study.previewNextFromPlanFront().orElse("-");
+            if (next.length() > 30) next = next.substring(0, 30) + "…";
+            miPlanNext.setLabel("Next: " + next);
+        } catch (Exception ignored) {
+            miPlanSummary.setLabel("Plan: -/-");
+            miPlanNext.setLabel("Next: -");
+        }
+    }
+
+private Image loadIcon() {
         try (InputStream in = TrayManager.class.getResourceAsStream("/icon-16.png")) {
             if (in != null) return ImageIO.read(in);
         } catch (IOException ignored) {}

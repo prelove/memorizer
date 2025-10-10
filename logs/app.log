@@ -1,77 +1,40 @@
-2025-10-10 19:20:13.577 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 19:20:18.258 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 19:20:18.260 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 19:20:18.383 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.065s)
-2025-10-10 19:20:18.412 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 19:20:18.417 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 19:20:18.422 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 19:20:18.427 WARN  com.memorizer.app.H2ConsoleServer - H2 Console start failed: org.h2.jdbc.JdbcSQLNonTransientConnectionException: ポート "8082" をオープン中に例外が発生しました (ポートが使用中の可能性があります)
-Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: JVM_Bind" [90061-200]. Retrying with minimal args…
-2025-10-10 19:20:18.427 INFO  com.memorizer.app.H2ConsoleServer - Retrying H2 Console with args=[-webPort, 8082]
-2025-10-10 19:20:18.429 WARN  com.memorizer.app.H2ConsoleServer - Failed to start H2 Console (fallback): org.h2.jdbc.JdbcSQLNonTransientConnectionException: ポート "8082" をオープン中に例外が発生しました (ポートが使用中の可能性があります)
-Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: JVM_Bind" [90061-200]
-2025-10-10 19:40:46.118 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 19:40:50.653 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 19:40:50.654 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 19:40:50.756 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.047s)
-2025-10-10 19:40:50.787 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 19:40:50.793 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 19:40:50.797 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 19:40:50.804 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
-2025-10-10 19:40:51.294 INFO  com.memorizer.app.Scheduler - Scheduler started.
-2025-10-10 19:40:51.686 INFO  com.memorizer.app.MainApp - Memorizer started.
-2025-10-10 19:52:09.502 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 19:52:09.782 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 19:52:09.783 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 19:52:09.875 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.041s)
-2025-10-10 19:52:09.904 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 19:52:09.909 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 19:52:09.919 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 19:52:09.936 WARN  com.memorizer.app.H2ConsoleServer - H2 Console start failed: org.h2.jdbc.JdbcSQLNonTransientConnectionException: ポート "8082" をオープン中に例外が発生しました (ポートが使用中の可能性があります)
-Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: JVM_Bind" [90061-200]. Retrying with minimal args…
-2025-10-10 19:52:09.937 INFO  com.memorizer.app.H2ConsoleServer - Retrying H2 Console with args=[-webPort, 8082]
-2025-10-10 19:52:09.938 WARN  com.memorizer.app.H2ConsoleServer - Failed to start H2 Console (fallback): org.h2.jdbc.JdbcSQLNonTransientConnectionException: ポート "8082" をオープン中に例外が発生しました (ポートが使用中の可能性があります)
-Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: JVM_Bind" [90061-200]
-2025-10-10 19:52:10.326 INFO  com.memorizer.app.Scheduler - Scheduler started.
-2025-10-10 19:52:10.591 INFO  com.memorizer.app.MainApp - Memorizer started.
-2025-10-10 19:52:44.678 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 19:52:49.199 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 19:52:49.200 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 19:52:49.306 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.050s)
-2025-10-10 19:52:49.334 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 19:52:49.342 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 19:52:49.344 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 19:52:49.351 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
-2025-10-10 19:52:49.775 INFO  com.memorizer.app.Scheduler - Scheduler started.
-2025-10-10 19:52:50.035 INFO  com.memorizer.app.MainApp - Memorizer started.
-2025-10-10 20:00:44.862 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 20:00:49.399 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 20:00:49.400 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 20:00:49.507 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.049s)
-2025-10-10 20:00:49.535 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 20:00:49.543 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 20:00:49.545 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 20:00:49.552 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
-2025-10-10 20:00:49.987 INFO  com.memorizer.app.Scheduler - Scheduler started.
-2025-10-10 20:00:50.253 INFO  com.memorizer.app.MainApp - Memorizer started.
-2025-10-10 20:01:49.685 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
-2025-10-10 20:01:57.697 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 20:02:02.232 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 20:02:02.234 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 20:02:02.350 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.056s)
-2025-10-10 20:02:02.380 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 20:02:02.389 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 20:02:02.393 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 20:02:02.400 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
-2025-10-10 20:02:02.833 INFO  com.memorizer.app.Scheduler - Scheduler started.
-2025-10-10 20:02:03.072 INFO  com.memorizer.app.MainApp - Memorizer started.
-2025-10-10 20:09:49.748 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
-2025-10-10 20:09:54.301 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
-2025-10-10 20:09:54.302 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
-2025-10-10 20:09:54.400 INFO  o.f.core.internal.command.DbValidate - Successfully validated 1 migration (execution time 00:00.045s)
-2025-10-10 20:09:54.425 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 1
-2025-10-10 20:09:54.429 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
-2025-10-10 20:09:54.432 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
-2025-10-10 20:09:54.436 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
-2025-10-10 20:09:54.862 INFO  com.memorizer.app.Scheduler - Scheduler started.
-2025-10-10 20:09:55.153 INFO  com.memorizer.app.MainApp - Memorizer started.
+2025-10-11 00:16:02.674 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-11 00:16:07.231 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-11 00:16:07.232 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-11 00:16:07.334 INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.047s)
+2025-10-11 00:16:07.364 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 2
+2025-10-11 00:16:07.370 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-11 00:16:07.373 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
+2025-10-11 00:16:07.377 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
+2025-10-11 00:16:08.030 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-11 00:16:08.091 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
+2025-10-11 00:16:35.096 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-11 00:16:39.593 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-11 00:16:39.595 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-11 00:16:39.689 INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.046s)
+2025-10-11 00:16:39.713 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 2
+2025-10-11 00:16:39.718 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-11 00:16:39.720 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
+2025-10-11 00:16:39.724 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
+2025-10-11 00:16:40.173 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-11 00:16:40.237 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
+2025-10-11 00:26:38.693 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-11 00:26:43.154 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-11 00:26:43.155 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-11 00:26:43.252 INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.044s)
+2025-10-11 00:26:43.278 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 2
+2025-10-11 00:26:43.283 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-11 00:26:43.285 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
+2025-10-11 00:26:43.291 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
+2025-10-11 00:26:43.776 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-11 00:26:43.837 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
+2025-10-11 00:31:34.163 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-11 00:31:38.779 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-11 00:31:38.780 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-11 00:31:38.885 INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.049s)
+2025-10-11 00:31:38.909 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 2
+2025-10-11 00:31:38.914 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-11 00:31:38.916 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8082]
+2025-10-11 00:31:38.920 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8082/ (allowOthers=false)
+2025-10-11 00:31:39.538 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-11 00:31:39.944 INFO  com.memorizer.app.MainApp - Memorizer started.
