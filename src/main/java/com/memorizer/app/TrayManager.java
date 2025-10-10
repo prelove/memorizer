@@ -44,6 +44,12 @@ public final class TrayManager {
 
         menu.add(miOpenMain);
         menu.add(miShow);
+        // Insert UI mode menu right after Show
+        Menu modeMenu = new Menu("Mode");
+        CheckboxMenuItem miNormal = new CheckboxMenuItem("Normal");
+        CheckboxMenuItem miMini   = new CheckboxMenuItem("Mini");
+        modeMenu.add(miNormal); modeMenu.add(miMini);
+        menu.add(modeMenu);
         menu.addSeparator();
         menu.add(miPause);
         menu.add(miResume);
@@ -55,6 +61,25 @@ public final class TrayManager {
         menu.add(miH2);
         menu.addSeparator();
         menu.add(miExit);
+
+        // 读取当前模式
+        boolean mini = "mini".equalsIgnoreCase(com.memorizer.app.Config.get("app.ui.mode","normal"));
+        miMini.setState(mini); miNormal.setState(!mini);
+
+        // 互斥选择
+        miNormal.addItemListener(e -> {
+            if (miNormal.getState()) { miMini.setState(false);
+                javafx.application.Platform.runLater(() -> stealthStage.setUIMode(com.memorizer.ui.StealthStage.UIMode.NORMAL));
+                // 如需持久化，后续加入 Config 持久保存
+            } else if (!miMini.getState()) { miNormal.setState(true); }
+        });
+        miMini.addItemListener(e -> {
+            if (miMini.getState()) { miNormal.setState(false);
+                javafx.application.Platform.runLater(() -> stealthStage.setUIMode(com.memorizer.ui.StealthStage.UIMode.MINI));
+            } else if (!miNormal.getState()) { miMini.setState(true); }
+        });
+
+        // Mode menu already inserted below "Show" above
 
         trayIcon = new TrayIcon(image, "Memorizer", menu);
         trayIcon.setImageAutoSize(true);

@@ -23,18 +23,22 @@ public final class TrayActions {
     }
 
     public static void showStealthNow(StudyService study) {
+        StealthStage stage = com.memorizer.app.AppContext.getStealth();
+        if (stage.isSessionActive()) {
+            Platform.runLater(stage::showAndFocus);
+            return;
+        }
         java.util.Optional<com.memorizer.service.StudyService.CardView> opt = study.currentOrNextOrFallback();
         if (opt.isPresent()) {
             com.memorizer.service.StudyService.CardView v = opt.get();
             Platform.runLater(() -> {
-                com.memorizer.ui.StealthStage stage = com.memorizer.app.AppContext.getStealth();
                 int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
                 stage.startBatch(batch);
-                stage.showCardView(v);   // 传 CardView
+                stage.showCardView(v);
                 stage.showAndFocus();
             });
-        } else {
-            if (trayIconRef != null) trayIconRef.displayMessage("Memorizer", "No cards.", TrayIcon.MessageType.INFO);
+        } else if (trayIconRef != null) {
+            trayIconRef.displayMessage("Memorizer", "No cards.", TrayIcon.MessageType.INFO);
         }
     }
     

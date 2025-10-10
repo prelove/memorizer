@@ -1,0 +1,67 @@
+/* Stealth banner theme (cross‑platform defaults) */
+.stealth-root {
+  -fx-background-color: #1f2327;
+  -fx-border-color: #121417;
+  -fx-border-width: 1 0 0 0;
+  -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Helvetica Neue", Arial, sans-serif;
+  -fx-font-size: 13px;
+}
+
+/* Text roles */
+.front {
+  -fx-text-fill: #f1f3f5;
+  -fx-font-weight: 600;
+  -fx-font-size: 15px;
+}
+.back {
+  -fx-text-fill: #e8e8e8;
+}
+.reading {
+  -fx-text-fill: #cfd3d7;
+  -fx-font-size: 12px;
+}
+.pos-pill {
+  -fx-font-size: 12px;
+  -fx-background-color: #303438;
+  -fx-text-fill: #bdbdbd;
+  -fx-padding: 2 8 2 8;
+  -fx-background-radius: 12;
+}
+.batch-info {
+  -fx-text-fill: #bdbdbd;
+  -fx-font-size: 11px;
+}
+
+/* Examples */
+.example-line {
+  -fx-text-fill: #c8c8c8;
+  -fx-font-size: 12px;
+}
+
+/* Buttons */
+.stealth-root .button {
+  -fx-text-fill: #e6e6e6;
+  -fx-background-color: #2a2f34;
+}
+.stealth-root .button:hover {
+  -fx-background-color: #343a40;
+}
+.button.btn-rating {
+  -fx-padding: 4 10 4 10;
+  -fx-background-radius: 6;
+}
+.button.btn-flip {
+  -fx-padding: 4 12 4 12;
+  -fx-background-radius: 6;
+}
+
+/* Today progress */
+.today-label {
+  -fx-text-fill: #d0d0d0;
+}
+.progress-bar.today-progress > .track {
+  -fx-background-color: #2a2f34;
+}
+.progress-bar.today-progress > .bar {
+  -fx-background-color: linear-gradient(to right, #3fb950, #2ea043);
+}

@@ -97,5 +97,45 @@
         </configuration>
       </plugin>
     </plugins>
+    <extensions/>
   </build>
+
+  <profiles>
+    <profile>
+      <id>openjfx</id>
+      <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <javafx.version>21.0.4</javafx.version>
+        <!-- Override on your OS: win | mac | linux -->
+        <javafx.platform>linux</javafx.platform>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-base</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-controls</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-swing</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

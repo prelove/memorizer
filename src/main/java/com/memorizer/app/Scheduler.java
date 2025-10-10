@@ -77,46 +77,49 @@ public class Scheduler {
         }
     }
 
+    private int deferBusyMinutes() {
+        return com.memorizer.app.Config.getInt("app.study.defer-when-busy-minutes", 3);
+    }
+    
     private void tick() {
+        long nextDelayMin = nextDelayMinutes();
         try {
-            java.util.Optional<com.memorizer.service.StudyService.CardView> v = java.util.Optional.empty();
+            if (paused) {
+                log.debug("tick skipped (paused).");
+                return;
+            }
 
+            if (stealth.isSessionActive() || stealth.isShowing()) {
+                int d = deferBusyMinutes();
+                log.info("Busy (session active). Defer next tick by {} min.", d);
+                nextDelayMin = d;
+                return;
+            }
+
+            java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.nextCard();
             boolean forceWhenEmpty = Boolean.parseBoolean(
                     com.memorizer.app.Config.get("app.study.force-show-when-empty", "true"));
+            if (!v.isPresent() && forceWhenEmpty) v = study.currentOrNextOrFallback();
 
-            if (!paused) {
-                // 先按 due/new，若允许兜底则再走 fallback
-                v = study.nextCard();
-                if (!v.isPresent() && forceWhenEmpty) {
-                    v = study.currentOrNextOrFallback();
-                }
-
-                if (v.isPresent()) {
-                    final com.memorizer.service.StudyService.CardView cv = v.get();
-                    final int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
-
-                    javafx.application.Platform.runLater(() -> {
-                        stealth.startBatch(batch);     // 批次开始（1=单张）
-                        stealth.showCardView(cv);      // 用 CardView 新方法
-                        stealth.showAndFocus();
-                    });
-                } else {
-                    log.info("No cards to show (due/new empty{}).",
-                            forceWhenEmpty ? "" : ", fallback disabled");
-                }
+            if (v.isPresent()) {
+                final com.memorizer.service.StudyService.CardView cv = v.get();
+                final int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+                javafx.application.Platform.runLater(() -> {
+                    stealth.startBatch(batch);
+                    stealth.showCardView(cv);
+                    stealth.showAndFocus();
+                });
             } else {
-                log.debug("tick skipped (paused).");
+                log.info("No cards to show (due/new empty{}).", forceWhenEmpty ? "" : ", fallback disabled");
             }
         } catch (Exception e) {
             log.warn("tick error: {}", e.toString());
         } finally {
-            long delayMin = nextDelayMinutes();
             synchronized (this) {
-                future = ses.schedule(this::tick, delayMin, java.util.concurrent.TimeUnit.MINUTES);
+                future = ses.schedule(this::tick, nextDelayMin, java.util.concurrent.TimeUnit.MINUTES);
             }
         }
     }
-
 
     private long nextDelayMinutes() {
         int min = Config.getInt("app.study.min-interval-minutes", 20);

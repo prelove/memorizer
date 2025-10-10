@@ -15,7 +15,8 @@ public class NoteRepository {
                 if (!rs.next()) return Optional.empty();
                 Note n = new Note();
                 n.id = rs.getLong(1);
-                n.deckId = (Long) rs.getObject(2);
+                Object deckObj = rs.getObject(2);
+                n.deckId = deckObj == null ? null : ((Number) deckObj).longValue();
                 n.front = rs.getString(3);
                 n.back = rs.getString(4);
                 n.reading = rs.getString(5);

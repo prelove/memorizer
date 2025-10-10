@@ -152,8 +152,8 @@ public class CardRepository {
         c.id = rs.getLong(1);
         c.noteId = rs.getLong(2);
         c.dueAt = rs.getTimestamp(3);
-        Double idays = (Double) rs.getObject(4);
-        c.intervalDays = idays;
+        Object ivlObj = rs.getObject(4);
+        c.intervalDays = (ivlObj == null) ? null : ((Number) ivlObj).doubleValue();
         c.ease = rs.getDouble(5);
         c.reps = rs.getInt(6);
         c.lapses = rs.getInt(7);

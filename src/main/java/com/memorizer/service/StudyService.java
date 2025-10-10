@@ -20,10 +20,28 @@ public class StudyService {
     private long showStartedAtMs = 0;
 
     public static class CardView {
-        public long cardId;
-        public String front;
-        public String back;
+        private long cardId;
+        private String front;
+        private String back;
+        private String reading;
+        private String pos;
+        private java.util.List<String> examples;
+        private java.util.List<String> tags;
+        private String deckName;
+
+        // getters
+        public long getCardId() { return cardId; }
+        public String getFront() { return front; }
+        public String getBack() { return back; }
+        public String getReading() { return reading; }
+        public String getPos() { return pos; }
+        public java.util.List<String> getExamples() { return examples; }
+        public java.util.List<String> getTags() { return tags; }
+        public String getDeckName() { return deckName; }
+
+        // 可选：builder 或全参构造器
     }
+
 
     /** Build a view for the given card id (and set state as showing). */
     public Optional<CardView> currentOrNextOrFallback() {
@@ -51,11 +69,44 @@ public class StudyService {
         if (!on.isPresent()) return null;
         showingCardId = cardId;
         showStartedAtMs = System.currentTimeMillis();
+        return assembleView(c, on.get());
+    }
+
+    /** Build rich CardView by joining Note (+optional Deck) and splitting examples/tags. */
+    private CardView assembleView(Card card, com.memorizer.model.Note note) {
         CardView v = new CardView();
-        v.cardId = cardId;
-        v.front = on.get().front;
-        v.back  = on.get().back;
+        v.cardId = card.id;
+        v.front = note.front;
+        v.back = note.back;
+        v.reading = note.reading;
+        v.pos = note.pos;
+        v.examples = splitList2(note.examples);
+        v.tags = splitList2(note.tags);
+        if (note.deckId != null) {
+            try {
+                String dn = new com.memorizer.db.DeckRepository().findNameById(note.deckId);
+                v.deckName = dn;
+            } catch (Exception ignored) {}
+        }
         return v;
+    }
+    
+    // New safe splitter to avoid regex typo in old splitList
+    private java.util.List<String> splitList2(String s) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (s == null) return out;
+        String[] parts = s.split("[\\n;|]+");
+        for (String p : parts) {
+            if (p == null) continue;
+            String t = p.trim();
+            if (!t.isEmpty()) out.add(t);
+        }
+        return out;
+    }
+
+    private java.util.List<String> splitList(String s) {
+        // delegate to the safe splitter
+        return splitList2(s);
     }
 
     /** Try next due/new; if none, fallback to any available card. */
@@ -74,11 +125,7 @@ public class StudyService {
         showingCardId = c.id;
         showStartedAtMs = System.currentTimeMillis();
 
-        CardView v = new CardView();
-        v.cardId = c.id;
-        v.front = on.get().front;
-        v.back  = on.get().back;
-        return Optional.of(v);
+        return Optional.of(assembleView(c, on.get()));
     }
     
     /** Get next card for batch session: prefer due/new, excluding the previous card; fallback optional. */
@@ -96,11 +143,7 @@ public class StudyService {
         showingCardId = c.id;
         showStartedAtMs = System.currentTimeMillis();
 
-        CardView v = new CardView();
-        v.cardId = c.id;
-        v.front = on.get().front;
-        v.back  = on.get().back;
-        return Optional.of(v);
+        return Optional.of(assembleView(c, on.get()));
     }
 
 
@@ -115,11 +158,7 @@ public class StudyService {
         showingCardId = c.id;
         showStartedAtMs = System.currentTimeMillis();
 
-        CardView v = new CardView();
-        v.cardId = c.id;
-        v.front = on.get().front;
-        v.back  = on.get().back;
-        return Optional.of(v);
+        return Optional.of(assembleView(c, on.get()));
     }
 
     /** Apply rating to current card and write logs. */

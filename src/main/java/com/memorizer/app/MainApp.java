@@ -1,14 +1,18 @@
 package com.memorizer.app;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.memorizer.db.Database;
 import com.memorizer.service.StudyService;
 import com.memorizer.ui.MainStage;
 import com.memorizer.ui.StealthStage;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javafx.stage.StageStyle;
+
 
 public class MainApp extends Application {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
@@ -17,6 +21,8 @@ public class MainApp extends Application {
     private TrayManager trayManager;
     private Scheduler scheduler;
     private StudyService studyService;
+    
+    private Stage toolOwner;
 
     @Override
     public void start(Stage primaryStage) {
@@ -25,7 +31,16 @@ public class MainApp extends Application {
         Database.start();
         H2ConsoleServer.startIfEnabled();
 
-        stealthStage = new StealthStage();
+        // Invisible owner to keep child windows off the taskbar
+        toolOwner = new Stage(StageStyle.UTILITY);
+        toolOwner.setOpacity(0);
+        toolOwner.setWidth(1); toolOwner.setHeight(1);
+        toolOwner.setX(-10000); toolOwner.setY(-10000);
+        toolOwner.setIconified(true);
+        toolOwner.show();
+        AppContext.setOwner(toolOwner);
+
+        stealthStage = new StealthStage();                  // it will use owner if enabled
         studyService = new StudyService();
         stealthStage.bindStudy(studyService);
 
@@ -34,13 +49,11 @@ public class MainApp extends Application {
 
         mainStage = new MainStage(studyService, scheduler);
 
-        // expose to context for TrayActions
         AppContext.setStealth(stealthStage);
         AppContext.setMain(mainStage);
 
         trayManager = new TrayManager(stealthStage, mainStage, studyService, scheduler);
-
-        log.info("Memorizer started. Use tray menu to show/hide stealth banner.");
+        log.info("Memorizer started.");
     }
 
     @Override

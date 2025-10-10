@@ -89,8 +89,13 @@ public class MainStage extends Stage {
 
         Menu mHelp = new Menu("Help");
         MenuItem miAbout = new MenuItem("About");
-        miAbout.setOnAction(e -> new Alert(Alert.AlertType.INFORMATION,
-                "Memorizer\nSimple spaced repetition helper.\n© You").showAndWait());
+        miAbout.setOnAction(e -> {
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("About Memorizer");
+            a.setHeaderText("Memorizer");
+            a.setContentText("Simple spaced repetition helper.\n© You");
+            a.showAndWait();
+        });
         mHelp.getItems().addAll(miAbout);
 
         return new MenuBar(mFile, mStudy, mHelp);
@@ -191,8 +196,8 @@ public class MainStage extends Stage {
         java.util.Optional<com.memorizer.service.StudyService.CardView> opt = study.currentOrNextOrFallback();
         if (opt.isPresent()) {
             com.memorizer.service.StudyService.CardView v = opt.get();
-            lblFront.setText(v.front);
-            lblBack.setText(v.back);
+            lblFront.setText(v.getFront());
+            lblBack.setText(v.getBack());
             showingFront = true;
             lblFront.setVisible(true);
             lblBack.setVisible(false);

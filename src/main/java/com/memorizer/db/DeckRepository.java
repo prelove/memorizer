@@ -38,4 +38,17 @@ public class DeckRepository {
         if (id != null) return id;
         return insert(name, null);
     }
+
+    /** Find deck name by id; return null if not found. */
+    public String findNameById(long id) {
+        try (PreparedStatement ps = Database.get()
+                .prepareStatement("SELECT name FROM deck WHERE id=?")) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findNameById failed", e);
+        }
+    }
 }

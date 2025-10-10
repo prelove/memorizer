@@ -101,7 +101,7 @@ public class ExcelImportService {
                         newDecks++;
                     }
 
-                    Note n = new Note();
+                    com.memorizer.model.Note n = new com.memorizer.model.Note();
                     n.deckId = deckId;
                     n.front = front;
                     n.back = back;
