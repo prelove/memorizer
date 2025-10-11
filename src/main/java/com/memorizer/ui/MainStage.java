@@ -55,6 +55,25 @@ public class MainStage extends Stage {
     private final Label lblBack  = new Label();
     private boolean showingFront = true;
 
+    // Exam tab state
+    private final Label examFront = new Label();
+    private final Label examBack  = new Label();
+    private final Label examProgress = new Label("0/0");
+    private final Label examScore = new Label("OK0 NG0");
+    private ComboBox<String> examSourceBox;
+    private CheckBox examShuffleBox;
+    private Spinner<Integer> examBatchSpinner;
+    private Button btnExamShow;
+    private Button btnExamCorrect;
+    private Button btnExamWrong;
+    private Button btnExamNext;
+    private Button btnExamRestart;
+    private boolean examShowingAnswer = false;
+    private final java.util.List<Long> examQueue = new java.util.ArrayList<>();
+    private int examIndex = 0;
+    private int examCorrect = 0;
+    private int examWrong = 0;
+
     public MainStage(StudyService study, Scheduler scheduler) {
         this.study = study;
         this.scheduler = scheduler;
@@ -101,15 +120,17 @@ public class MainStage extends Stage {
         mFile.getItems().addAll(miImport, miTemplate, new SeparatorMenuItem(), miH2, new SeparatorMenuItem(), miExit);
 
         Menu mStudy = new Menu("Study");
-        MenuItem miShowNow = new MenuItem("Show Now");
+        MenuItem miShowNow = new MenuItem("Show Now (Banner)");
         miShowNow.setOnAction(e -> com.memorizer.app.TrayActions.showStealthNow(study));
+        MenuItem miOpenStudy = new MenuItem("Open Study Window");
+        miOpenStudy.setOnAction(e -> openStudyWindow());
         MenuItem miPause = new MenuItem("Pause Reminders");
         miPause.setOnAction(e -> scheduler.pause());
         MenuItem miResume = new MenuItem("Resume Reminders");
         miResume.setOnAction(e -> scheduler.resume());
         MenuItem miSnooze = new MenuItem("Snooze 10 min");
         miSnooze.setOnAction(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
-        mStudy.getItems().addAll(miShowNow, new SeparatorMenuItem(), miPause, miResume, miSnooze);
+        mStudy.getItems().addAll(miOpenStudy, miShowNow, new SeparatorMenuItem(), miPause, miResume, miSnooze);
 
         Menu mHelp = new Menu("Help");
         MenuItem miAbout = new MenuItem("About");
@@ -117,7 +138,7 @@ public class MainStage extends Stage {
             Alert a = new Alert(Alert.AlertType.INFORMATION);
             a.setTitle("About Memorizer");
             a.setHeaderText("Memorizer");
-            a.setContentText("Simple spaced repetition helper.\n© You");
+            a.setContentText("Simple spaced repetition helper.\n   You");
             a.showAndWait();
         });
         mHelp.getItems().addAll(miAbout);
@@ -131,14 +152,184 @@ public class MainStage extends Stage {
         Tab tabDash = new Tab("Dashboard", buildDashboard());
         tabDash.setClosable(false);
 
-        Tab tabStudy = new Tab("Study", buildStudyPane());
-        tabStudy.setClosable(false);
-
         planPageSize = Config.getInt("app.ui.plan.page-size", 25);
         Tab tabPlan = new Tab("Plan", buildPlanPane());
         tabPlan.setClosable(false);
-        tabs.getTabs().addAll(tabDash, tabStudy, tabPlan);
+        Tab tabExam = new Tab("Exam", buildExamPane());
+        tabExam.setClosable(false);
+        tabs.getTabs().addAll(tabDash, tabPlan, tabExam);
         return tabs;
+    }
+
+    // ---- study window ----
+    private StudyStage studyStage;
+    private void openStudyWindow() {
+        if (studyStage == null) studyStage = new StudyStage(study);
+        studyStage.showAndFocus();
+    }
+
+    private Pane buildExamPane() {
+        BorderPane root = new BorderPane();
+        VBox box = new VBox(12);
+        box.setPadding(new Insets(16));
+
+        examFront.setStyle("-fx-font-size: 22px;");
+        examBack.setStyle("-fx-font-size: 20px; -fx-text-fill: #444;");
+        examBack.setVisible(false);
+
+        HBox row1 = new HBox(10, new Label("Front:"), examFront);
+        HBox row2 = new HBox(10, new Label("Back:"), examBack);
+
+        btnExamShow = new Button("Show Answer");
+        btnExamCorrect = new Button("  Correct");
+        btnExamWrong = new Button("  Wrong");
+        btnExamNext = new Button("Next");
+        btnExamRestart = new Button("Restart");
+
+        btnExamCorrect.setDisable(true);
+        btnExamWrong.setDisable(true);
+
+        btnExamShow.setOnAction(e -> {
+            examShowingAnswer = true;
+            examBack.setVisible(true);
+            btnExamCorrect.setDisable(false);
+            btnExamWrong.setDisable(false);
+        });
+
+        btnExamCorrect.setOnAction(e -> {
+            examCorrect++;
+            examScore.setText("OK" + examCorrect + " NG" + examWrong);
+            gotoNextExam();
+        });
+
+        btnExamWrong.setOnAction(e -> {
+            examWrong++;
+            examScore.setText("OK" + examCorrect + " NG" + examWrong);
+            gotoNextExam();
+        });
+
+        btnExamNext.setOnAction(e -> gotoNextExam());
+        btnExamRestart.setOnAction(e -> { prepareExamQueue(); showExamCurrent(); });
+
+        // source/options
+        examSourceBox = new ComboBox<>();
+        examSourceBox.getItems().setAll("Plan", "Due", "New");
+        String srcPref = Config.get("app.ui.exam.source", "Plan");
+        if (!examSourceBox.getItems().contains(srcPref)) srcPref = "Plan";
+        examSourceBox.getSelectionModel().select(srcPref);
+        examSourceBox.valueProperty().addListener((o,ov,nv) -> { Config.set("app.ui.exam.source", nv==null?"Plan":nv); prepareExamQueue(); showExamCurrent(); });
+
+        examShuffleBox = new CheckBox("Shuffle");
+        boolean shPref = Config.getBool("app.ui.exam.shuffle", true);
+        examShuffleBox.setSelected(shPref);
+        examShuffleBox.selectedProperty().addListener((o,ov,nv) -> { Config.set("app.ui.exam.shuffle", String.valueOf(nv)); prepareExamQueue(); showExamCurrent(); });
+
+        int batchPref = Config.getInt("app.ui.exam.batch-size", 20);
+        examBatchSpinner = new Spinner<>(1, 500, Math.max(1, batchPref));
+        examBatchSpinner.setEditable(true);
+        examBatchSpinner.valueProperty().addListener((o,ov,nv) -> { if (nv!=null) { Config.set("app.ui.exam.batch-size", String.valueOf(nv)); prepareExamQueue(); showExamCurrent(); }});
+
+        HBox controls = new HBox(10,
+                new Label("Source:"), examSourceBox,
+                examShuffleBox,
+                new Label("Batch:"), examBatchSpinner,
+                new Separator(),
+                btnExamShow, btnExamCorrect, btnExamWrong, btnExamNext, btnExamRestart,
+                new Separator(), new Label("Progress:"), examProgress, new Label("Score:"), examScore);
+        controls.setAlignment(Pos.CENTER_LEFT);
+
+        box.getChildren().addAll(row1, row2, new Separator(), controls);
+        root.setCenter(box);
+
+        // Prepare first session
+        prepareExamQueue();
+        showExamCurrent();
+
+        // Keyboard shortcuts on exam pane
+        box.setOnKeyPressed(ev -> {
+            if (ev.getCode() == KeyCode.ENTER) {
+                if (!examShowingAnswer) { btnExamShow.fire(); } else { btnExamNext.fire(); }
+            } else if (ev.getCode() == KeyCode.A) {
+                if (!btnExamCorrect.isDisabled()) btnExamCorrect.fire();
+            } else if (ev.getCode() == KeyCode.S) {
+                if (!btnExamWrong.isDisabled()) btnExamWrong.fire();
+            } else if (ev.getCode() == KeyCode.ESCAPE) {
+                btnExamRestart.fire();
+            }
+        });
+
+        return root;
+    }
+
+    private void prepareExamQueue() {
+        examQueue.clear();
+        examIndex = 0;
+        examCorrect = 0; examWrong = 0;
+        examScore.setText("OK0 NG0");
+
+        java.util.List<com.memorizer.service.PlanService.PlanRow> rows = study.planListToday();
+        int limit = Math.max(1, Config.getInt("app.ui.exam.batch-size", 20));
+        String src = Config.get("app.ui.exam.source", "Plan");
+        boolean useShuffle = Config.getBool("app.ui.exam.shuffle", true);
+        java.util.List<Long> pool = new java.util.ArrayList<>();
+        for (com.memorizer.service.PlanService.PlanRow r : rows) {
+            if (r == null) continue;
+            if ("Plan".equalsIgnoreCase(src)) pool.add(r.getCardId());
+            else if ("Due".equalsIgnoreCase(src)) { if (r.getKind() == 0) pool.add(r.getCardId()); }
+            else if ("New".equalsIgnoreCase(src)) { if (r.getKind() == 2) pool.add(r.getCardId()); }
+        }
+        if (useShuffle) java.util.Collections.shuffle(pool);
+        for (Long id : pool) { examQueue.add(id); if (examQueue.size() >= limit) break; }
+
+        if (examQueue.isEmpty()) {
+            java.util.Optional<com.memorizer.model.Card> any = new com.memorizer.db.CardRepository().findAnyAvailable();
+            if (any.isPresent()) examQueue.add(any.get().id);
+        }
+        examProgress.setText(examQueue.isEmpty()?"0/0":"1/" + examQueue.size());
+    }
+
+    private void showExamCurrent() {
+        if (examQueue.isEmpty() || examIndex < 0 || examIndex >= examQueue.size()) {
+            examFront.setText("(No exam items)");
+            examBack.setText("");
+            examBack.setVisible(false);
+            btnExamShow.setDisable(true);
+            btnExamCorrect.setDisable(true);
+            btnExamWrong.setDisable(true);
+            btnExamNext.setDisable(true);
+            examProgress.setText("0/0");
+            return;
+        }
+        long cardId = examQueue.get(examIndex);
+        com.memorizer.db.NoteRepository repo = new com.memorizer.db.NoteRepository();
+        java.util.Optional<com.memorizer.model.Note> on = repo.findByCardId(cardId);
+        String f = on.isPresent() ? (on.get().front == null ? "" : on.get().front) : "";
+        String b = on.isPresent() ? (on.get().back == null ? "" : on.get().back) : "";
+        examFront.setText(f);
+        examBack.setText(b);
+        examShowingAnswer = false; examBack.setVisible(false);
+        btnExamShow.setDisable(false);
+        btnExamCorrect.setDisable(true);
+        btnExamWrong.setDisable(true);
+        btnExamNext.setDisable(false);
+        examProgress.setText((examIndex + 1) + "/" + examQueue.size());
+    }
+
+    private void gotoNextExam() {
+        if (examQueue.isEmpty()) { showExamCurrent(); return; }
+        examIndex++;
+        if (examIndex >= examQueue.size()) {
+            btnExamShow.setDisable(true);
+            btnExamCorrect.setDisable(true);
+            btnExamWrong.setDisable(true);
+            btnExamNext.setDisable(true);
+            examFront.setText("(Exam finished)");
+            examBack.setText("");
+            examBack.setVisible(false);
+            examProgress.setText(examQueue.size() + "/" + examQueue.size());
+            return;
+        }
+        showExamCurrent();
     }
 
     private Pane buildPlanPane() {
@@ -221,6 +412,28 @@ public class MainStage extends Stage {
                     }
                 }
             });
+            // context menu: mark done / skip
+            ContextMenu cm = new ContextMenu();
+            MenuItem miDone = new MenuItem("Mark Done");
+            MenuItem miSkip = new MenuItem("Skip");
+            miDone.setOnAction(e -> {
+                if (!row.isEmpty()) {
+                    com.memorizer.service.PlanService.PlanRow r = row.getItem();
+                    try { new com.memorizer.service.PlanService().markDone(r.getCardId()); } catch (Exception ignored) {}
+                    reloadPlan();
+                    try { com.memorizer.app.TrayManager tm = com.memorizer.app.AppContext.getTray(); if (tm != null) tm.updatePlanTooltip(); } catch (Exception ignored) {}
+                }
+            });
+            miSkip.setOnAction(e -> {
+                if (!row.isEmpty()) {
+                    com.memorizer.service.PlanService.PlanRow r = row.getItem();
+                    try { new com.memorizer.service.PlanService().markSkipped(r.getCardId()); } catch (Exception ignored) {}
+                    reloadPlan();
+                    try { com.memorizer.app.TrayManager tm = com.memorizer.app.AppContext.getTray(); if (tm != null) tm.updatePlanTooltip(); } catch (Exception ignored) {}
+                }
+            });
+            cm.getItems().addAll(miDone, miSkip);
+            row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(cm));
             return row;
         });
 
@@ -347,7 +560,7 @@ private Pane buildDashboard() {
             lblFront.setVisible(true);
             lblBack.setVisible(false);
         } else {
-            lblFront.setText("(No cards. Use File → Import Excel...)");
+            lblFront.setText("(No cards. Use File -> Import Excel...)");
             lblBack.setText("");
             showingFront = true;
             lblBack.setVisible(false);
@@ -400,3 +613,4 @@ private Pane buildDashboard() {
     }
 
 }
+

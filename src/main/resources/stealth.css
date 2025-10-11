@@ -11,7 +11,7 @@
 .front {
   -fx-text-fill: #f1f3f5;
   -fx-font-weight: 600;
-  -fx-font-size: 15px;
+  -fx-font-size: 17px;
 }
 .front.kind-due { -fx-text-fill: #d7e8ff; }
 .front.kind-leech { -fx-text-fill: #ffd0d0; }
@@ -19,6 +19,7 @@
 .front.kind-chal { -fx-text-fill: #ead6ff; }
 .back {
   -fx-text-fill: #e8e8e8;
+  -fx-font-size: 15px;
 }
 .back.kind-due { -fx-text-fill: #d7e8ff; }
 .back.kind-leech { -fx-text-fill: #ffd0d0; }
@@ -77,3 +78,4 @@
 .progress-bar.today-progress > .bar {
   -fx-background-color: linear-gradient(to right, #3fb950, #2ea043);
 }
+

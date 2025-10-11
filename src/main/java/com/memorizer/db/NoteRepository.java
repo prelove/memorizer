@@ -54,4 +54,47 @@ public class NoteRepository {
             throw new RuntimeException("insert note failed", e);
         }
     }
+
+    /** Update editable fields of a note by id. */
+    public void update(Note n) {
+        if (n == null) return;
+        String sql = "UPDATE note SET front=?, back=?, reading=?, pos=?, examples=?, tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            ps.setString(1, n.front);
+            ps.setString(2, n.back);
+            ps.setString(3, n.reading);
+            ps.setString(4, n.pos);
+            ps.setString(5, n.examples);
+            ps.setString(6, n.tags);
+            ps.setLong(7, n.id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("update note failed", e);
+        }
+    }
+
+    /** Load a note by card id (join card->note). */
+    public Optional<Note> findByCardId(long cardId) {
+        String sql = "SELECT n.id, n.deck_id, n.front, n.back, n.reading, n.pos, n.examples, n.tags " +
+                "FROM card c JOIN note n ON n.id=c.note_id WHERE c.id=?";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            ps.setLong(1, cardId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return Optional.empty();
+                Note n = new Note();
+                n.id = rs.getLong(1);
+                Object deckObj = rs.getObject(2);
+                n.deckId = deckObj == null ? null : ((Number) deckObj).longValue();
+                n.front = rs.getString(3);
+                n.back = rs.getString(4);
+                n.reading = rs.getString(5);
+                n.pos = rs.getString(6);
+                n.examples = rs.getString(7);
+                n.tags = rs.getString(8);
+                return Optional.of(n);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findByCardId failed", e);
+        }
+    }
 }

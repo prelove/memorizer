@@ -62,6 +62,7 @@ public class MainApp extends Application {
     @Override
     public void stop() {
         try {
+            if (trayManager != null) trayManager.shutdown();
             if (scheduler != null) scheduler.stop();
             H2ConsoleServer.stop();
             Database.stop();
