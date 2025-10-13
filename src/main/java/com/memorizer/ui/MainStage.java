@@ -15,6 +15,8 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.control.TableRow;
 import javafx.stage.Stage;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,7 @@ public class MainStage extends Stage {
     private final Label lblTotalNotes = new Label("-");
     private final Label lblTodayReviews = new Label("-");
     private final Label lblScheduler = new Label("-");
+    private final Label lblNotice = new Label("");
     // Plan stats
     private final Label lblPlanPending = new Label("-");
     private final Label lblPlanDone = new Label("-");
@@ -133,6 +136,13 @@ public class MainStage extends Stage {
         });
         mFile.getItems().addAll(miImport, miTemplate, new SeparatorMenuItem(), miH2, new SeparatorMenuItem(), miExit);
 
+        Menu mData = new Menu("Data");
+        MenuItem miNewDeck = new MenuItem("New Deck...");
+        miNewDeck.setOnAction(e -> openNewDeckDialog());
+        MenuItem miNewEntry = new MenuItem("New Entry...");
+        miNewEntry.setOnAction(e -> openNewEntryDialog());
+        mData.getItems().addAll(miNewDeck, miNewEntry);
+
         Menu mStudy = new Menu("Study");
         MenuItem miShowNow = new MenuItem("Show Now (Banner)");
         miShowNow.setOnAction(e -> com.memorizer.app.TrayActions.showStealthNow(study));
@@ -163,7 +173,23 @@ public class MainStage extends Stage {
             else if (!miDark.isSelected()) { miLight.setSelected(true); }
         });
         mTheme.getItems().addAll(miDark, miLight);
-        mView.getItems().addAll(mTheme);
+        // Deck filter
+        Menu mDeck = new Menu("Deck");
+        ToggleGroup tg = new ToggleGroup();
+        RadioMenuItem miAll = new RadioMenuItem("All Decks"); miAll.setToggleGroup(tg);
+        String sel = Config.get("app.deck.filter","all");
+        if ("all".equalsIgnoreCase(sel)) miAll.setSelected(true);
+        miAll.setOnAction(e -> { Config.set("app.deck.filter","all"); reloadPlan(); refreshStats(); try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s!=null) s.refreshTodayProgress(); } catch (Exception ignored) {} });
+        mDeck.getItems().add(miAll);
+        java.util.List<com.memorizer.model.Deck> decks = new com.memorizer.db.DeckRepository().listAll();
+        for (com.memorizer.model.Deck d : decks) {
+            RadioMenuItem item = new RadioMenuItem(d.name + " (#"+d.id+")");
+            item.setToggleGroup(tg);
+            if (String.valueOf(d.id).equals(sel)) item.setSelected(true);
+            item.setOnAction(ev -> { Config.set("app.deck.filter", String.valueOf(d.id)); reloadPlan(); refreshStats(); try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s!=null) s.refreshTodayProgress(); } catch (Exception ignored) {} });
+            mDeck.getItems().add(item);
+        }
+        mView.getItems().addAll(mTheme, new SeparatorMenuItem(), mDeck);
 
         Menu mHelp = new Menu("Help");
         MenuItem miAbout = new MenuItem("About");
@@ -174,9 +200,149 @@ public class MainStage extends Stage {
             a.setContentText("Simple spaced repetition helper.\n   You");
             a.showAndWait();
         });
-        mHelp.getItems().addAll(miAbout);
+        MenuItem miManual = new MenuItem("User Manual...");
+        miManual.setOnAction(e -> openUserManual());
+        mHelp.getItems().addAll(miManual, new SeparatorMenuItem(), miAbout);
 
-        return new MenuBar(mFile, mStudy, mView, mHelp);
+        return new MenuBar(mFile, mData, mStudy, mView, mHelp);
+    }
+
+    private void openUserManual() {
+        String text = loadUserManual();
+        TextArea ta = new TextArea(text);
+        ta.setEditable(false);
+        ta.setWrapText(true);
+        ta.setPrefColumnCount(80);
+        ta.setPrefRowCount(24);
+        Dialog<Void> dlg = new Dialog<>();
+        dlg.setTitle("User Manual");
+        dlg.getDialogPane().setContent(ta);
+        dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dlg.initOwner(this);
+        dlg.showAndWait();
+    }
+
+    private String loadUserManual() {
+        try (java.io.InputStream is = getClass().getResourceAsStream("/USER_MANUAL.txt")) {
+            if (is != null) {
+                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                byte[] tmp = new byte[4096];
+                int n;
+                while ((n = is.read(tmp)) != -1) bos.write(tmp, 0, n);
+                return new String(bos.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        } catch (Exception ignored) {}
+        return "Memorizer User Manual\n\n" +
+               "- Stealth Banner: Normal/Mini modes (T to toggle theme, M to toggle mode).\n" +
+               "- Flip cycle: Front → Back → Front+Back+Reading/Pos+Examples → Front.\n" +
+               "- Rating: Again/Hard/Good/Easy (1/2/3/4).\n" +
+               "- Progress: Today target bar with overlay text.\n" +
+               "- Decks: View → Deck to filter; Data → New Deck/Entry to create.\n" +
+               "- Shortcuts: SPACE/ENTER flip, F8 toggle banner, ESC hide.\n";
+    }
+
+    private void openNewDeckDialog() {
+        javafx.stage.Stage d = new javafx.stage.Stage();
+        d.setTitle("New Deck");
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(12));
+        TextField tfName = new TextField();
+        tfName.setPromptText("Deck name");
+        HBox actions = new HBox(8);
+        Button btnCancel = new Button("Cancel");
+        Button btnSave = new Button("Create");
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        actions.getChildren().addAll(spacer, btnCancel, btnSave);
+        root.getChildren().addAll(new Label("Name"), tfName, actions);
+        Scene sc = new Scene(root, 360, 120);
+        d.setScene(sc);
+        btnCancel.setOnAction(e -> d.close());
+        Runnable create = () -> {
+            String name = tfName.getText()==null?"":tfName.getText().trim();
+            if (name.isEmpty()) return;
+            try { new com.memorizer.db.DeckRepository().getOrCreate(name); } catch (Exception ignored) {}
+            showNotice("Deck created: " + name);
+            d.close();
+        };
+        btnSave.setOnAction(e -> create.run());
+        sc.setOnKeyPressed(ev -> { if (ev.getCode() == KeyCode.ENTER) create.run(); if (ev.getCode()== KeyCode.ESCAPE) d.close(); });
+        d.initOwner(this);
+        d.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        d.showAndWait();
+    }
+
+    private void openNewEntryDialog() {
+        javafx.stage.Stage d = new javafx.stage.Stage();
+        d.setTitle("New Entry");
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(12));
+
+        ComboBox<com.memorizer.model.Deck> deckBox = new ComboBox<>();
+        deckBox.setConverter(new javafx.util.StringConverter<com.memorizer.model.Deck>() {
+            @Override public String toString(com.memorizer.model.Deck dd) { return dd==null?"(No deck)":dd.name; }
+            @Override public com.memorizer.model.Deck fromString(String s) { return null; }
+        });
+        java.util.List<com.memorizer.model.Deck> decks = new com.memorizer.db.DeckRepository().listAll();
+        deckBox.getItems().setAll(decks);
+        if (!decks.isEmpty()) deckBox.getSelectionModel().select(0);
+
+        TextField tfFront = new TextField(); tfFront.setPromptText("Front");
+        TextField tfReading = new TextField(); tfReading.setPromptText("Reading");
+        TextField tfPos = new TextField(); tfPos.setPromptText("Pos");
+        TextArea taBack = new TextArea(); taBack.setPromptText("Back"); taBack.setPrefRowCount(3);
+        TextArea taExamples = new TextArea(); taExamples.setPromptText("Examples"); taExamples.setPrefRowCount(3);
+        TextField tfTags = new TextField(); tfTags.setPromptText("Tags");
+
+        GridPane form = new GridPane(); form.setHgap(8); form.setVgap(8);
+        int r=0; form.add(new Label("Deck"),0,r); form.add(deckBox,1,r++);
+        form.add(new Label("Front"),0,r); form.add(tfFront,1,r++);
+        form.add(new Label("Reading/Pos"),0,r); HBox rp = new HBox(8, tfReading, tfPos); HBox.setHgrow(tfReading, Priority.ALWAYS); form.add(rp,1,r++);
+        form.add(new Label("Back"),0,r); form.add(taBack,1,r++);
+        form.add(new Label("Examples"),0,r); form.add(taExamples,1,r++);
+        form.add(new Label("Tags"),0,r); form.add(tfTags,1,r++);
+        ColumnConstraints cc0 = new ColumnConstraints(); cc0.setMinWidth(110); cc0.setPrefWidth(120);
+        ColumnConstraints cc1 = new ColumnConstraints(); cc1.setHgrow(Priority.ALWAYS);
+        form.getColumnConstraints().addAll(cc0, cc1);
+
+        HBox actions = new HBox(8);
+        Button btnCancel = new Button("Cancel");
+        Button btnSave = new Button("Save");
+        Region spacer2 = new Region(); HBox.setHgrow(spacer2, Priority.ALWAYS);
+        actions.getChildren().addAll(spacer2, btnCancel, btnSave);
+
+        root.getChildren().addAll(form, actions);
+        Scene sc = new Scene(root, 520, 360);
+        d.setScene(sc);
+        btnCancel.setOnAction(e -> d.close());
+        Runnable save = () -> {
+            com.memorizer.model.Note n = new com.memorizer.model.Note();
+            com.memorizer.model.Deck sel = deckBox.getValue();
+            n.deckId = sel == null ? null : sel.id;
+            n.front = tfFront.getText();
+            n.back = taBack.getText();
+            n.reading = tfReading.getText();
+            n.pos = tfPos.getText();
+            n.examples = taExamples.getText();
+            n.tags = tfTags.getText();
+            try {
+                long nid = new com.memorizer.db.NoteRepository().insert(n);
+                new com.memorizer.db.CardRepository().insertForNote(nid);
+            } catch (Exception ex) {
+                new Alert(Alert.AlertType.ERROR, "Save failed: " + ex.getMessage(), ButtonType.OK).showAndWait();
+                return;
+            }
+            showNotice("Entry saved" + (sel!=null? (" to " + sel.name): ""));
+            d.close();
+        };
+        btnSave.setOnAction(e -> save.run());
+        sc.setOnKeyPressed(ev -> {
+            if (ev.getCode() == KeyCode.ESCAPE) d.close();
+            if (ev.getCode() == KeyCode.S && ev.isControlDown()) save.run();
+            if (ev.getCode() == KeyCode.ENTER && ev.isControlDown()) save.run();
+        });
+        d.initOwner(this);
+        d.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        d.showAndWait();
     }
 
     private void setThemeDark() {
@@ -620,10 +786,21 @@ public class MainStage extends Stage {
     }
 
     private HBox buildStatusBar() {
-        HBox bar = new HBox(16, new Label("Scheduler:"), lblScheduler);
+        HBox bar = new HBox(16);
         bar.setPadding(new Insets(8, 12, 8, 12));
         bar.setStyle("-fx-background-color: #f2f2f2;");
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        lblNotice.getStyleClass().add("batch-info");
+        bar.getChildren().addAll(new Label("Scheduler:"), lblScheduler, spacer, lblNotice);
         return bar;
+    }
+
+    private void showNotice(String msg) {
+        lblNotice.setText(msg == null ? "" : msg);
+        if (msg == null || msg.trim().isEmpty()) return;
+        PauseTransition pt = new PauseTransition(Duration.seconds(3));
+        pt.setOnFinished(e -> { if (lblNotice.getText().equals(msg)) lblNotice.setText(""); });
+        pt.playFromStart();
     }
 
     // ---- public helpers ----

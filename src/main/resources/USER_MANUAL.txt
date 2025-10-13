@@ -1,0 +1,43 @@
+Memorizer — User Manual
+
+Overview
+- Memorizer is a distraction-minimized SRS helper with a taskbar-like Stealth banner (Normal/Mini) and a standard Main window.
+- Data is stored in an embedded H2 database; decks, notes, and cards are managed locally.
+
+Stealth Banner (Normal/Mini)
+- Show/Hide: Tray menu → Show Stealth Now; shortcut F8 toggles while focused.
+- Modes: Press M to toggle Normal/Mini. Mini is a single-row compact view.
+- Theme: Press T to toggle Dark/Light.
+- Flip cycle (per card): Front → Back → Front+Back+Reading/Pos+Examples → Front (repeat).
+- Rating: 1 Again, 2 Hard, 3 Good, 4 Easy. Flip button is neutral.
+- Progress: Overlay shows Today x/target; bar caps at 100%. Text capped to target (e.g., 50/50).
+- Examples: Multi-line in Normal; single-line in Mini (marquee when long).
+
+Main Window
+- Tabs: Dashboard, Plan, Exam. Dashboard shows global stats; Plan shows today’s plan; Exam provides a quick drill tool.
+- Data menu:
+  - New Deck…: create a new deck by name.
+  - New Entry…: manually add a note (Front/Back/Reading/Pos/Examples/Tags) to a deck. A card is created automatically.
+- View → Deck: filter plan and Stealth by deck (All Decks or a specific deck id). The filter persists and is shared across Desktop and PWA via the DB/Config.
+
+Study Flow
+- Tick-based reminders are serialized: no new Stealth window appears during an active session; ticks defer automatically.
+- ESC or Snooze defers the current card by a short interval.
+
+Shortcuts (Stealth)
+- SPACE/ENTER: Flip
+- 1/2/3/4: Again/Hard/Good/Easy
+- ESC: Hide (optionally snooze)
+- M: Toggle Mini/Normal
+- T: Toggle Dark/Light
+- F8: Toggle Stealth show/hide (when window focused)
+
+Configuration
+- application.properties documents all available settings (UI, scheduling, DB, plan limits, theme, deck filter).
+- app.deck.filter controls the global deck filter ("all" or deck id).
+- app.ui.theme controls Dark/Light at startup; can be toggled at runtime.
+
+Troubleshooting
+- If the Stealth banner shows near the taskbar with a gap, ensure overlay-taskbar=false and DPI settings are typical (100–150%).
+- If Maven can’t resolve plugins, adjust settings.xml to use Maven Central (avoid localhost proxies).
+

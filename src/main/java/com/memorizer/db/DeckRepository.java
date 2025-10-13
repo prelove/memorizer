@@ -51,4 +51,22 @@ public class DeckRepository {
             throw new RuntimeException("findNameById failed", e);
         }
     }
+
+    /** List all decks (id, name) ordered by id. */
+    public java.util.List<com.memorizer.model.Deck> listAll() {
+        java.util.List<com.memorizer.model.Deck> out = new java.util.ArrayList<>();
+        try (PreparedStatement ps = Database.get().prepareStatement("SELECT id, name FROM deck ORDER BY id ASC")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    com.memorizer.model.Deck d = new com.memorizer.model.Deck();
+                    d.id = rs.getLong(1);
+                    d.name = rs.getString(2);
+                    out.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("listAll decks failed", e);
+        }
+        return out;
+    }
 }

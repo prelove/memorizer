@@ -101,9 +101,13 @@ public class PlanService {
 
     public Optional<Long> nextFromPlan() {
         LocalDate today = LocalDate.now();
-        try (PreparedStatement ps = Database.get().prepareStatement(
-                "SELECT card_id FROM study_plan WHERE plan_date=? AND status=0 ORDER BY order_no ASC LIMIT 1")) {
-            ps.setDate(1, java.sql.Date.valueOf(today));
+        String whereFilter = deckFilterWhereClause("p", "c", "n");
+        String sql = "SELECT p.card_id FROM study_plan p JOIN card c ON c.id=p.card_id JOIN note n ON n.id=c.note_id WHERE p.plan_date=? AND p.status=0"
+                + whereFilter + " ORDER BY p.order_no ASC LIMIT 1";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            int idx = 1;
+            ps.setDate(idx++, java.sql.Date.valueOf(today));
+            idx = bindDeckFilterIfAny(ps, idx);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(rs.getLong(1)) : Optional.empty();
             }
@@ -162,9 +166,11 @@ public class PlanService {
     public Counts todayCounts() {
         Counts c = new Counts();
         java.time.LocalDate today = java.time.LocalDate.now();
-        try (PreparedStatement ps = Database.get().prepareStatement(
-                "SELECT status, COUNT(*) FROM study_plan WHERE plan_date=? GROUP BY status")) {
-            ps.setDate(1, java.sql.Date.valueOf(today));
+        String whereFilter = deckFilterWhereClause("p", "c", "n");
+        String sql = "SELECT p.status, COUNT(*) FROM study_plan p JOIN card c ON c.id=p.card_id JOIN note n ON n.id=c.note_id " +
+                "WHERE p.plan_date=? " + whereFilter + " GROUP BY p.status";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            int idx = 1; ps.setDate(idx++, java.sql.Date.valueOf(today)); idx = bindDeckFilterIfAny(ps, idx);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int st = rs.getInt(1);
@@ -184,13 +190,14 @@ public class PlanService {
     public java.util.List<PlanRow> listToday() {
         java.util.List<PlanRow> out = new java.util.ArrayList<PlanRow>();
         LocalDate today = LocalDate.now();
+        String whereFilter = deckFilterWhereClause("p", "c", "n");
         String sql = "SELECT p.order_no, p.kind, p.status, p.card_id, d.name, n.front " +
                 "FROM study_plan p JOIN card c ON c.id=p.card_id " +
                 "JOIN note n ON n.id=c.note_id " +
                 "LEFT JOIN deck d ON d.id=n.deck_id " +
-                "WHERE p.plan_date=? ORDER BY p.order_no ASC";
+                "WHERE p.plan_date=? " + whereFilter + " ORDER BY p.order_no ASC";
         try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
-            ps.setDate(1, java.sql.Date.valueOf(today));
+            int idx = 1; ps.setDate(idx++, java.sql.Date.valueOf(today)); idx = bindDeckFilterIfAny(ps, idx);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     PlanRow r = new PlanRow();
@@ -245,10 +252,11 @@ public class PlanService {
     private List<Long> findDueCards(int limit) {
         List<Long> out = new ArrayList<Long>();
         Timestamp now = new Timestamp(System.currentTimeMillis());
-        try (PreparedStatement ps = Database.get().prepareStatement(
-                "SELECT id FROM card WHERE (due_at IS NOT NULL AND due_at <= ?) AND status <> 3 ORDER BY due_at ASC LIMIT ?")) {
-            ps.setTimestamp(1, now);
-            ps.setInt(2, limit);
+        String whereFilter = deckFilterWhereClause(null, "c", "n");
+        String sql = "SELECT c.id FROM card c JOIN note n ON n.id=c.note_id WHERE (c.due_at IS NOT NULL AND c.due_at <= ?) AND c.status <> 3"
+                + whereFilter + " ORDER BY c.due_at ASC LIMIT ?";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            int idx=1; ps.setTimestamp(idx++, now); ps.setInt(idx++, limit); idx = bindDeckFilterIfAny(ps, idx);
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findDueCards failed", e); }
         return out;
@@ -256,9 +264,11 @@ public class PlanService {
 
     private List<Long> findNewCards(int limit) {
         List<Long> out = new ArrayList<Long>();
-        try (PreparedStatement ps = Database.get().prepareStatement(
-                "SELECT id FROM card WHERE (due_at IS NULL OR status = 0) AND status <> 3 ORDER BY id ASC LIMIT ?")) {
-            ps.setInt(1, Math.max(0, limit));
+        String whereFilter = deckFilterWhereClause(null, "c", "n");
+        String sql = "SELECT c.id FROM card c JOIN note n ON n.id=c.note_id WHERE (c.due_at IS NULL OR c.status = 0) AND c.status <> 3"
+                + whereFilter + " ORDER BY c.id ASC LIMIT ?";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            int idx=1; ps.setInt(idx++, Math.max(0, limit)); idx = bindDeckFilterIfAny(ps, idx);
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findNewCards failed", e); }
         return out;
@@ -266,12 +276,28 @@ public class PlanService {
 
     private List<Long> findLeechCards(int lapsesThresh, int limit) {
         List<Long> out = new ArrayList<Long>();
-        try (PreparedStatement ps = Database.get().prepareStatement(
-                "SELECT id FROM card WHERE (lapses >= ? OR ease <= 1.3) AND status <> 3 ORDER BY lapses DESC LIMIT ?")) {
-            ps.setInt(1, lapsesThresh);
-            ps.setInt(2, limit);
+        String whereFilter = deckFilterWhereClause(null, "c", "n");
+        String sql = "SELECT c.id FROM card c JOIN note n ON n.id=c.note_id WHERE (c.lapses >= ? OR c.ease <= 1.3) AND c.status <> 3"
+                + whereFilter + " ORDER BY c.lapses DESC LIMIT ?";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            int idx=1; ps.setInt(idx++, lapsesThresh); ps.setInt(idx++, limit); idx = bindDeckFilterIfAny(ps, idx);
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findLeechCards failed", e); }
         return out;
+    }
+
+    // ---- deck filter helpers ----
+    private static String deckFilterWhereClause(String pAlias, String cAlias, String nAlias) {
+        String sel = com.memorizer.app.Config.get("app.deck.filter", "all");
+        if (sel == null || sel.trim().isEmpty() || "all".equalsIgnoreCase(sel)) return "";
+        String n = (nAlias == null || nAlias.isEmpty()) ? "n" : nAlias;
+        return " AND " + n + ".deck_id = ?";
+    }
+    private static int bindDeckFilterIfAny(PreparedStatement ps, int idx) throws SQLException {
+        String sel = com.memorizer.app.Config.get("app.deck.filter", "all");
+        if (sel == null || sel.trim().isEmpty() || "all".equalsIgnoreCase(sel)) return idx;
+        long did = Long.parseLong(sel.trim());
+        ps.setLong(idx++, did);
+        return idx;
     }
 }

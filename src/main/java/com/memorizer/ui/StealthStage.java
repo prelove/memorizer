@@ -677,7 +677,7 @@ public class StealthStage extends Stage {
      if (examplesMiniMarquee != null) { examplesMiniMarquee.stop(); examplesMiniMarquee = null; }
  }
 
- private void refreshTodayProgress() {
+ public void refreshTodayProgress() {
      int target = com.memorizer.app.Config.getInt("app.study.daily-target", 50);
      int done = 0;
      try { done = new StatsRepository().load().todayReviews; } catch (Exception ignored) {}
