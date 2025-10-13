@@ -8,6 +8,9 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.Menu;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -19,6 +22,7 @@ public class StudyStage extends Stage {
     private final StudyService study;
     private final Label lblFront = new Label();
     private final Label lblBack  = new Label();
+    private final Label lblMode  = new Label();
     private boolean showingFront = true;
 
     public StudyStage(StudyService study) {
@@ -30,8 +34,7 @@ public class StudyStage extends Stage {
         VBox root = new VBox(12);
         root.setPadding(new Insets(16));
 
-        lblFront.setStyle("-fx-font-size: 22px;");
-        lblBack.setStyle("-fx-font-size: 22px; -fx-text-fill: #555;");
+        // Keep default Modena look for Study window (no external CSS roles)
         lblBack.setVisible(false);
 
         HBox row1 = new HBox(10, new Label("Front:"), lblFront);
@@ -44,6 +47,12 @@ public class StudyStage extends Stage {
         Button btnGood  = new Button("3 Good");
         Button btnEasy  = new Button("4 Easy)");
         Button btnNext  = new Button("Next");
+        btnFlip.getStyleClass().addAll("btn","btn-info");
+        btnAgain.getStyleClass().addAll("btn","btn-danger");
+        btnHard.getStyleClass().addAll("btn","btn-warning");
+        btnGood.getStyleClass().addAll("btn","btn-success");
+        btnEasy.getStyleClass().addAll("btn","btn-primary");
+        btnNext.getStyleClass().addAll("btn","btn-default");
 
         btnFlip.setOnAction(e -> toggleFace());
         btnAgain.setOnAction(e -> { rate(Rating.AGAIN); loadNext(); });
@@ -55,7 +64,17 @@ public class StudyStage extends Stage {
         buttons.getChildren().addAll(btnFlip, btnAgain, btnHard, btnGood, btnEasy, btnNext);
         buttons.setAlignment(Pos.CENTER_LEFT);
 
-        root.getChildren().addAll(row1, row2, new Separator(), buttons);
+        // Menu bar (Theme toggle) + Mode indicator
+        MenuBar menuBar = buildMenuBar();
+        lblMode.getStyleClass().add("batch-info");
+        refreshModeIndicatorFromConfig();
+        HBox topBar = new HBox(8, menuBar);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+        HBox spacer = new HBox();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+        topBar.getChildren().addAll(spacer, lblMode);
+
+        root.getChildren().addAll(topBar, row1, row2, new Separator(), buttons);
 
         Scene scene = new Scene(root);
         scene.setOnKeyPressed(ev -> {
@@ -79,6 +98,9 @@ public class StudyStage extends Stage {
         if (!isShowing()) show();
         toFront(); requestFocus(); setIconified(false);
     }
+
+    // Allow others (Main/Tray) to update theme live
+    public void applyTheme(boolean light) { /* no-op: Study window stays default Modena */ }
 
     private void loadNext() {
         java.util.Optional<StudyService.CardView> opt = study.currentOrNextOrFallback();
@@ -107,5 +129,41 @@ public class StudyStage extends Stage {
         study.rate(r);
         // no toast here; rely on immediate next load
     }
-}
 
+    public void refreshModeIndicatorFromConfig() {
+        boolean mini = "mini".equalsIgnoreCase(com.memorizer.app.Config.get("app.ui.mode","normal"));
+        lblMode.setText("Mode: " + (mini?"Mini":"Normal"));
+    }
+
+    private MenuBar buildMenuBar() {
+        Menu mView = new Menu("View");
+        Menu mTheme = new Menu("Theme");
+        CheckMenuItem miDark = new CheckMenuItem("Dark");
+        CheckMenuItem miLight = new CheckMenuItem("Light");
+        boolean light = "light".equalsIgnoreCase(com.memorizer.app.Config.get("app.ui.theme","dark"));
+        miLight.setSelected(light); miDark.setSelected(!light);
+        miDark.setOnAction(e -> {
+            if (miDark.isSelected()) {
+                miLight.setSelected(false);
+                com.memorizer.app.Config.set("app.ui.theme", "dark");
+                // Update all windows
+                applyTheme(false);
+                try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s != null) s.setTheme(com.memorizer.ui.StealthStage.ThemeMode.DARK); } catch (Exception ignored) {}
+                try { com.memorizer.ui.MainStage m = com.memorizer.app.AppContext.getMain(); if (m != null) m.applyTheme(false); } catch (Exception ignored) {}
+            } else if (!miLight.isSelected()) { miDark.setSelected(true); }
+        });
+        miLight.setOnAction(e -> {
+            if (miLight.isSelected()) {
+                miDark.setSelected(false);
+                com.memorizer.app.Config.set("app.ui.theme", "light");
+                // Update all windows
+                applyTheme(true);
+                try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s != null) s.setTheme(com.memorizer.ui.StealthStage.ThemeMode.LIGHT); } catch (Exception ignored) {}
+                try { com.memorizer.ui.MainStage m = com.memorizer.app.AppContext.getMain(); if (m != null) m.applyTheme(true); } catch (Exception ignored) {}
+            } else if (!miDark.isSelected()) { miLight.setSelected(true); }
+        });
+        mTheme.getItems().addAll(miDark, miLight);
+        mView.getItems().addAll(mTheme);
+        return new MenuBar(mView);
+    }
+}

@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Mon Oct 13 01:14:49 JST 2025
+14399ca34b73858bd6485939a9872a7cea402a07@default-nexus-releases-http\://localhost\:8081/repository/maven-public/.lastUpdated=1760285689715
+http\://localhost\:8081/repository/maven-public/.error=Could not transfer artifact org.apache.maven.plugins\:maven-clean-plugin\:pom\:2.5 from/to nexus-releases (http\://localhost\:8081/repository/maven-public/)\: Transfer failed for http\://localhost\:8081/repository/maven-public/org/apache/maven/plugins/maven-clean-plugin/2.5/maven-clean-plugin-2.5.pom

@@ -3,6 +3,7 @@ package com.memorizer.ui;
 import com.memorizer.app.Config;
 import com.memorizer.app.H2ConsoleServer;
 import com.memorizer.app.Scheduler;
+import com.memorizer.app.WebServerManager;
 import com.memorizer.db.StatsRepository;
 import com.memorizer.model.Rating;
 import com.memorizer.service.StudyService;
@@ -132,6 +133,25 @@ public class MainStage extends Stage {
         miSnooze.setOnAction(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
         mStudy.getItems().addAll(miOpenStudy, miShowNow, new SeparatorMenuItem(), miPause, miResume, miSnooze);
 
+        // View: Theme toggle (Dark/Light)
+        Menu mView = new Menu("View");
+        Menu mTheme = new Menu("Theme");
+        CheckMenuItem miDark = new CheckMenuItem("Dark");
+        CheckMenuItem miLight = new CheckMenuItem("Light");
+        boolean light = "light".equalsIgnoreCase(Config.get("app.ui.theme","dark"));
+        miLight.setSelected(light); miDark.setSelected(!light);
+        // mutual exclusion
+        miDark.setOnAction(e -> {
+            if (miDark.isSelected()) { miLight.setSelected(false); setThemeDark(); }
+            else if (!miLight.isSelected()) { miDark.setSelected(true); }
+        });
+        miLight.setOnAction(e -> {
+            if (miLight.isSelected()) { miDark.setSelected(false); setThemeLight(); }
+            else if (!miDark.isSelected()) { miLight.setSelected(true); }
+        });
+        mTheme.getItems().addAll(miDark, miLight);
+        mView.getItems().addAll(mTheme);
+
         Menu mHelp = new Menu("Help");
         MenuItem miAbout = new MenuItem("About");
         miAbout.setOnAction(e -> {
@@ -143,7 +163,27 @@ public class MainStage extends Stage {
         });
         mHelp.getItems().addAll(miAbout);
 
-        return new MenuBar(mFile, mStudy, mHelp);
+        return new MenuBar(mFile, mStudy, mView, mHelp);
+    }
+
+    private void setThemeDark() {
+        Config.set("app.ui.theme", "dark");
+        try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s != null) s.setTheme(com.memorizer.ui.StealthStage.ThemeMode.DARK); } catch (Exception ignored) {}
+        // Keep main/study default Modena background (no theme application here)
+    }
+    private void setThemeLight() {
+        Config.set("app.ui.theme", "light");
+        try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s != null) s.setTheme(com.memorizer.ui.StealthStage.ThemeMode.LIGHT); } catch (Exception ignored) {}
+        // Keep main/study default Modena background (no theme application here)
+    }
+    private void applyThemeForMain(Region root, boolean light) { /* no-op: use default Modena */ }
+
+    /** Allow external callers (e.g., Tray) to live-update the main/study themes. */
+    public void applyTheme(boolean light) { /* no-op for main + study backgrounds */ }
+
+    /** Update Mode indicator label in Study window, if open. */
+    public void refreshModeIndicatorInStudy() {
+        try { if (studyStage != null) studyStage.refreshModeIndicatorFromConfig(); } catch (Exception ignored) {}
     }
 
     private TabPane buildTabs() {
@@ -439,9 +479,12 @@ public class MainStage extends Stage {
 
 
         Button btnRefresh = new Button("Refresh");
+        btnRefresh.getStyleClass().addAll("btn","btn-primary");
         btnRefresh.setOnAction(e -> reloadPlan());
         Button btnPrev = new Button("Prev");
         Button btnNext = new Button("Next");
+        btnPrev.getStyleClass().addAll("btn","btn-default");
+        btnNext.getStyleClass().addAll("btn","btn-default");
         btnPrev.setOnAction(e -> changePlanPage(-1));
         btnNext.setOnAction(e -> changePlanPage(1));
         planPagination = new Pagination(1, 0);
@@ -465,7 +508,7 @@ public class MainStage extends Stage {
 
     
 
-private Pane buildDashboard() {
+    private Pane buildDashboard() {
         GridPane g = new GridPane();
         g.setPadding(new Insets(16));
         g.setHgap(16);
@@ -482,8 +525,44 @@ private Pane buildDashboard() {
         g.add(new Label("Plan Total:"), 0, r); g.add(lblPlanTotal, 1, r++);
 
         Button btnRefresh = new Button("Refresh (F5)");
+        btnRefresh.getStyleClass().addAll("btn","btn-primary");
         btnRefresh.setOnAction(e -> refreshStats());
         g.add(btnRefresh, 0, r, 2, 1);
+
+        // Mobile Sync (PWA Server)
+        r++;
+        Label lblSync = new Label("Sync Server:");
+        Label lblSyncStatus = new Label(com.memorizer.app.WebServerManager.get().isRunning()?"Running":"Stopped");
+        Button btnToggleSync = new Button(com.memorizer.app.WebServerManager.get().isRunning()?"Disable":"Enable");
+        Button btnPair = new Button("Pair Mobile");
+        btnToggleSync.setOnAction(e -> {
+            try {
+                if (com.memorizer.app.WebServerManager.get().isRunning()) {
+                    com.memorizer.app.WebServerManager.get().stop();
+                } else {
+                    com.memorizer.app.WebServerManager.get().start();
+                }
+            } catch (Exception ex) {
+                new Alert(Alert.AlertType.ERROR, "Sync server error: " + ex.getMessage(), ButtonType.OK).showAndWait();
+            }
+            lblSyncStatus.setText(com.memorizer.app.WebServerManager.get().isRunning()?"Running":"Stopped");
+            btnToggleSync.setText(com.memorizer.app.WebServerManager.get().isRunning()?"Disable":"Enable");
+        });
+        btnPair.setOnAction(e -> {
+            try {
+                if (!com.memorizer.app.WebServerManager.get().isRunning()) com.memorizer.app.WebServerManager.get().start();
+                int p = com.memorizer.app.WebServerManager.get().getPort();
+                int port = (p==0? com.memorizer.app.Config.getInt("app.web.port",7070):p);
+                String httpsUrl = "https://localhost:" + port + "/pair";
+                String httpUrl  =  "http://localhost:" + port + "/pair";
+                boolean ok = com.memorizer.util.Browse.open(httpsUrl);
+                if (!ok) com.memorizer.util.Browse.open(httpUrl);
+            } catch (Exception ex) {
+                new Alert(Alert.AlertType.ERROR, "Open pairing page failed: " + ex.getMessage(), ButtonType.OK).showAndWait();
+            }
+        });
+        HBox syncRow = new HBox(10, lblSync, lblSyncStatus, btnToggleSync, btnPair);
+        g.add(syncRow, 0, r, 2, 1);
 
         return g;
     }
@@ -506,6 +585,12 @@ private Pane buildDashboard() {
         Button btnGood  = new Button("3 Good");
         Button btnEasy  = new Button("4 Easy");
         Button btnNext  = new Button("Next");
+        btnFlip.getStyleClass().addAll("btn","btn-info");
+        btnAgain.getStyleClass().addAll("btn","btn-danger");
+        btnHard.getStyleClass().addAll("btn","btn-warning");
+        btnGood.getStyleClass().addAll("btn","btn-success");
+        btnEasy.getStyleClass().addAll("btn","btn-primary");
+        btnNext.getStyleClass().addAll("btn","btn-default");
 
         btnFlip.setOnAction(e -> toggleFace());
         btnAgain.setOnAction(e -> { rate(Rating.AGAIN); loadNextForStudy(); });

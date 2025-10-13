@@ -1,0 +1,109 @@
+#taskbarDrawer, .taskbar-light {
+  -fx-background-radius: 12;
+  -fx-background-insets: 0;
+  -fx-padding: 8 12 10 12; /* Normal */
+  -fx-background-color: linear-gradient(to bottom, #F3F4F6, #E9EBEF);
+}
+.taskbar-mini#taskbarDrawer, .taskbar-light.taskbar-mini {
+  -fx-padding: 6 10 8 10; /* Mini */
+}
+
+.root {
+  -fx-text-base: #1F2430;
+  -fx-text-base-secondary: #5E697A;
+}
+
+.controls .button {
+  -fx-min-height: 32; -fx-pref-height: 32; -fx-max-height: 32;
+  -fx-background-radius: 6;
+  -fx-font-size: 13px; -fx-font-weight: 600;
+  -fx-padding: 0 12;
+  -fx-text-fill: #1F2430;
+}
+.controls .button:focused {
+  -fx-effect: dropshadow(gaussian, rgba(76,141,246,0.40), 6, 0.6, 0, 0);
+}
+.controls .button:armed { -fx-scale-x: .98; -fx-scale-y: .98; }
+.controls { -fx-spacing: 8; }
+
+.text-main { -fx-fill: -fx-text-base; -fx-text-fill: -fx-text-base; -fx-font-size: 16px; -fx-font-weight: 600; }
+.text-sub  { -fx-fill: -fx-text-base-secondary; -fx-text-fill: -fx-text-base-secondary; -fx-font-size: 13px; }
+
+.badge, .today { -fx-font-size: 12px; -fx-text-fill: -fx-text-base-secondary; }
+
+/* Center content lines */
+.line-main { -fx-padding: 0 0 2 0; }
+.line-sub  { -fx-padding: 0; -fx-font-size: 12px; -fx-text-fill: -fx-text-base-secondary; }
+.text, .label { -fx-text-fill: -fx-text-base; }
+
+/* Cells */
+.cell-edit { }
+.cell-front, .cell-back {
+  -fx-font-size: 20px;
+  -fx-font-weight: 700;
+  -fx-text-fill: -fx-text-base;
+}
+.cell-reading .label, .cell-reading { -fx-font-size: 12.5px; -fx-text-fill: -fx-text-base-secondary; }
+.cell-examples { -fx-padding: 0 8 0 8; }
+.taskbar-light .cell-examples,
+.taskbar-light .scroll-pane, .taskbar-light .scroll-pane > .viewport {
+  -fx-background-color: transparent; -fx-background-insets: 0;
+}
+
+/* Buttons */
+.btn-answer, .btn-flip, .controls .button {
+  -fx-min-height: 32; -fx-pref-height: 32; -fx-max-height: 32;
+  -fx-background-radius: 6; -fx-padding: 0 12;
+  -fx-font-weight: 600; -fx-font-size: 13px;
+}
+.controls .button:hover { -fx-opacity: .98; }
+.controls .button:armed { -fx-scale-x: .98; -fx-scale-y: .98; }
+
+/* Mini overrides */
+.taskbar-mini .cell-front, .taskbar-mini .cell-back { -fx-font-size: 17px; }
+.taskbar-mini .cell-progress .label { -fx-font-size: 0; }
+
+/* Progress */
+.cell-progress .progress-bar.progress-large { -fx-pref-height: 34; }
+
+/* Rating buttons: pastel body fill */
+.btn-answer {
+  -fx-background-insets: 0, 0;
+  -fx-background-radius: 6, 6;
+  -fx-border-color: rgba(0,0,0,0.10), rgba(255,255,255,0.35);
+  -fx-border-insets: 0, 1;
+  -fx-border-width: 1, 1;
+}
+.btn-again { -fx-background-color: rgba(239,83,80,0.22), #E7EBF2; }
+.btn-hard  { -fx-background-color: rgba(245,165,36,0.22), #E7EBF2; }
+.btn-good  { -fx-background-color: rgba(34,197,94,0.22), #E7EBF2; }
+.btn-easy  { -fx-background-color: rgba(139,92,246,0.22), #E7EBF2; }
+.btn-answer:hover { -fx-background-color: rgba(255,255,255,0.06), -fx-background-color; -fx-effect: innershadow(gaussian, rgba(0,0,0,0.08), 4, 0.8, 0, 0); }
+.btn-again:hover { -fx-background-color: rgba(239,83,80,0.28), #E7EBF2; }
+.btn-hard:hover  { -fx-background-color: rgba(245,165,36,0.28), #E7EBF2; }
+.btn-good:hover  { -fx-background-color: rgba(34,197,94,0.28), #E7EBF2; }
+.btn-easy:hover  { -fx-background-color: rgba(139,92,246,0.28), #E7EBF2; }
+.btn-answer:armed { -fx-background-color: rgba(0,0,0,0.06), -fx-background-color; }
+.btn-again:armed { -fx-background-color: rgba(239,83,80,0.18), #E7EBF2; }
+.btn-hard:armed  { -fx-background-color: rgba(245,165,36,0.18), #E7EBF2; }
+.btn-good:armed  { -fx-background-color: rgba(34,197,94,0.18), #E7EBF2; }
+.btn-easy:armed  { -fx-background-color: rgba(139,92,246,0.18), #E7EBF2; }
+
+/* Flip neutral */
+.btn-flip { -fx-background-color: #E7EBF2; -fx-border-color: rgba(0,0,0,0.10), rgba(255,255,255,0.35); -fx-border-insets: 0,1; -fx-border-width:1,1; }
+.btn-flip:hover { -fx-background-color: #EEF2F8; }
+.btn-flip:armed { -fx-background-color: #DEE4ED; }
+
+.separator:vertical > .line {
+  -fx-border-color: rgba(80,84,92,0.25);
+  -fx-border-insets: 8 0 8 0;
+  -fx-border-width: 0 1px 0 0;
+}
+
+.mini .separator { -fx-background-color: transparent; -fx-opacity: 0; }
+
+/* Ensure scroll content sits transparent over drawer; let drawer provide bg */
+.taskbar-light .scroll-pane { -fx-background-color: transparent; }
+.taskbar-light .scroll-pane > .viewport { -fx-background-color: transparent; }
+.taskbar-light .scroll-pane > .viewport > * { -fx-background-color: transparent; }
+.taskbar-light .scroll-pane > .corner { -fx-background-color: transparent; }

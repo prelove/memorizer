@@ -3,16 +3,21 @@ package com.memorizer.ui;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.geometry.VPos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.*;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import javafx.scene.control.OverrunStyle;
 import com.memorizer.db.StatsRepository;
 import com.memorizer.service.StudyService;
 import javafx.animation.KeyFrame;
@@ -22,6 +27,7 @@ import javafx.util.Duration;
 public class StealthStage extends Stage {
 
  public enum UIMode { NORMAL, MINI }
+ public enum ThemeMode { DARK, LIGHT }
 
  // === 会话状态（用于调度串行化） ===
  private volatile boolean sessionActive;
@@ -31,6 +37,8 @@ public class StealthStage extends Stage {
  private UIMode currentMode = "mini".equalsIgnoreCase(com.memorizer.app.Config.get("app.ui.mode","normal"))
          ? UIMode.MINI : UIMode.NORMAL;
  private BorderPane root;              // 作为舞台根
+ private ThemeMode currentTheme = "light".equalsIgnoreCase(com.memorizer.app.Config.get("app.ui.theme","dark"))
+         ? ThemeMode.LIGHT : ThemeMode.DARK;
  private Pane normalBar;               // Normal 模式根条
  private Pane miniBar;                 // Mini 模式根条
 
@@ -43,15 +51,16 @@ public class StealthStage extends Stage {
  private final Button btn3 = new Button("3");
  private final Button btn4 = new Button("4");
 
- private final Label frontLabel = new Label();
- private final Label backLabel  = new Label();
- private final Label readingLabel = new Label();
+ private final Label frontLabel = new Label(); // legacy
+ private final Label backLabel  = new Label(); // legacy
+ private final Label readingLabel = new Label(); // legacy
  private final Label posLabel = new Label();
  private int flipPressCount = 0;
  private boolean readingShown = false;
  private final Label kindLabel = new Label();
 
  private final VBox examplesBox = new VBox(2);    // 简易例句容器（滚动动效下步做）
+ private final javafx.scene.control.ScrollPane examplesScroll = new javafx.scene.control.ScrollPane();
  private final Label todayLabel = new Label("Today: 0/0");
  private final ProgressBar todayProgress = new ProgressBar(0);
  private final Label planLabel = new Label("");
@@ -66,6 +75,32 @@ public class StealthStage extends Stage {
  private Timeline examplesTimeline;
  private java.util.List<String> currentExamples;
  private int examplesIndex = 0;
+ private final Button btnSkip = new Button("Skip");
+ private final Button btnSnooze = new Button("Snooze");
+
+ // --- New drawer GridPane layout ---
+ private GridPane drawerRoot;
+ private VBox examplesCell; // C4 container
+ private Label leftBadge = new Label();
+ private Separator leftSep = new Separator(javafx.geometry.Orientation.VERTICAL);
+ private Separator rightSep = new Separator(javafx.geometry.Orientation.VERTICAL);
+ private VBox centerBox = new VBox(2);
+ private TextFlow lineA = new TextFlow();
+ private Label lineB = new Label(); // reading
+ private Label lineC = new Label(); // example (first)
+ private Label readingPosLabel = new Label();
+ private Label examplesMini = new Label();
+ private HBox controlsMini;
+ private VBox controlsNormal;
+ private HBox rowFlip;
+ private HBox rowKeys;
+ private GridPane answersNormal;
+ private HBox answersMini;
+ private VBox progressBox;
+ private java.util.List<Separator> allVerticalSeps = new java.util.ArrayList<>();
+ private Timeline examplesMiniMarquee;
+ private ColumnConstraints colC2; // Reading/Pos
+ private ColumnConstraints colC4; // Examples
 
  public StealthStage() {
      super();
@@ -86,6 +121,10 @@ public class StealthStage extends Stage {
     frontLabel.setWrapText(false);
     backLabel.setWrapText(false);
     readingLabel.setWrapText(false);
+    // avoid focus sticking to labels
+    frontLabel.setFocusTraversable(false);
+    backLabel.setFocusTraversable(false);
+    readingLabel.setFocusTraversable(false);
 
     // 使用 CSS 类来控制视觉效果（避免内联覆盖）
     frontLabel.getStyleClass().add("front");
@@ -94,14 +133,20 @@ public class StealthStage extends Stage {
     posLabel.getStyleClass().add("pos-pill");
     batchInfo.getStyleClass().add("batch-info");
 
-    // 评分按钮样式交由 CSS 控制（统一尺寸/圆角等）
-    btnFlip.getStyleClass().add("btn-flip");
-    btn1.getStyleClass().add("btn-rating");
-    btn2.getStyleClass().add("btn-rating");
-    btn3.getStyleClass().add("btn-rating");
-    btn4.getStyleClass().add("btn-rating");
+    // 按钮样式（项目 CSS + app.css）
+    // buttons styling classes (32px height via CSS .controls)
+    btnFlip.getStyleClass().addAll("controls","btn-flip");
+    // Normal mode uses text labels on main buttons
+    btn1.setText("Again");
+    btn2.setText("Hard");
+    btn3.setText("Good");
+    btn4.setText("Easy");
+    btn1.getStyleClass().addAll("controls","btn-answer","btn-again");
+    btn2.getStyleClass().addAll("controls","btn-answer","btn-hard");
+    btn3.getStyleClass().addAll("controls","btn-answer","btn-good");
+    btn4.getStyleClass().addAll("controls","btn-answer","btn-easy");
 
-    todayLabel.getStyleClass().add("today-label");
+    todayLabel.getStyleClass().add("today");
     todayProgress.getStyleClass().add("today-progress");
      todayProgress.setPrefWidth(120);
      todayProgress.setMaxWidth(120);
@@ -120,20 +165,86 @@ public class StealthStage extends Stage {
      btn2.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.HARD));
      btn3.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.GOOD));
      btn4.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.EASY));
+     btnSkip.setOnAction(e -> skipCurrent());
+     btnSnooze.setOnAction(e -> hideWithSnooze());
 
-     btnEdit.setOnAction(e -> {
-         // 先打开主窗（具体“定位到编辑”下步实现）
-         com.memorizer.app.AppContext.getMain().showAndFocus();
-     });
+    btnEdit.setOnAction(e -> {
+        // 先打开主窗（具体“定位到编辑”下步实现）
+        com.memorizer.app.AppContext.getMain().showAndFocus();
+    });
+    btnSkip.setTooltip(new Tooltip("Skip (S)"));
+    btnSnooze.setTooltip(new Tooltip("Snooze & Hide"));
 
     // 根容器
     root = new BorderPane();
-    root.getStyleClass().add("stealth-root");
-    setScene(new Scene(root));
-    try {
-        java.net.URL css = StealthStage.class.getResource("/stealth.css");
-        if (css != null) getScene().getStylesheets().add(css.toExternalForm());
-    } catch (Exception ignored) {}
+    root.setId("taskbarDrawer");
+    root.getStyleClass().add("taskbar-dark");
+    Scene sc = new Scene(root);
+    sc.setFill(javafx.scene.paint.Color.TRANSPARENT);
+    setScene(sc);
+    root.setSnapToPixel(true);
+    // apply theme stylesheet (dark by default)
+    applyDrawerTheme(currentTheme == ThemeMode.DARK);
+    // rounded clip with shadow
+    final javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+    clip.setArcWidth(16); clip.setArcHeight(16);
+    root.setClip(clip);
+    root.layoutBoundsProperty().addListener((o,ov,nv)->{
+        if (nv != null) { clip.setWidth(nv.getWidth()); clip.setHeight(nv.getHeight()); }
+    });
+    root.setEffect(new javafx.scene.effect.DropShadow(18, javafx.scene.paint.Color.rgb(0,0,0,0.35)));
+    // 保持 Java 8 兼容，不加载需要更高 JRE 的样式库
+
+    // 主题初始化
+    applyTheme(currentTheme);
+
+    buildDrawerGrid();
+    applyMode(currentMode);
+
+    // Responsive shrink policy thresholds for center area and progress
+    root.widthProperty().addListener((o, oldW, w) -> {
+        double ww = w == null ? 0 : w.doubleValue();
+        boolean mini = currentMode == UIMode.MINI;
+        // hide progress text under ~1180px in Normal
+        boolean tight1 = (!mini) && ww > 0 && ww < 1180;
+        if (progressBox != null && progressBox.getChildren().size() >= 3) {
+            Node t1 = progressBox.getChildren().get(1);
+            Node t2 = progressBox.getChildren().get(2);
+            boolean show = !mini && !tight1;
+            if (t1 != null) { t1.setVisible(show); t1.setManaged(show); }
+            if (t2 != null) { t2.setVisible(show); t2.setManaged(show); }
+        }
+        // clamp FRONT/BACK to 1 line under ~1060px in Normal
+        boolean tight2 = (!mini) && ww > 0 && ww < 1060;
+        limitLabelLines(frontLabel, tight2 ? 1 : (mini ? 1 : 2));
+        limitLabelLines(backLabel,  tight2 ? 1 : (mini ? 1 : 2));
+        // collapse EXAMPLES under ~980px (hide it first)
+        boolean tight3 = ww > 0 && ww < 980;
+        if (examplesScroll != null) {
+            boolean showNormal = (!mini) && !tight3;
+            examplesScroll.setVisible(showNormal);
+            examplesScroll.setManaged(showNormal);
+        }
+        if (examplesMini != null) {
+            boolean showMini = mini && !tight3;
+            examplesMini.setVisible(showMini);
+            examplesMini.setManaged(showMini);
+        }
+        // reading/pos width pressure: squeeze to ~100px when tight
+        if (colC2 != null) {
+            if (ww > 1200) { colC2.setMinWidth(110); colC2.setPrefWidth(130); }
+            else if (ww > 1050) { colC2.setMinWidth(105); colC2.setPrefWidth(120); }
+            else { colC2.setMinWidth(100); colC2.setPrefWidth(110); }
+        }
+        // examples max width priority vs center
+        if (colC4 != null) {
+            if (ww > 1280) { colC4.setPrefWidth(Region.USE_COMPUTED_SIZE); }
+            else if (ww > 1100) { colC4.setPrefWidth(360); }
+            else if (ww > 980) { colC4.setPrefWidth(280); }
+            else { colC4.setPrefWidth(160); }
+        }
+        adjustExamplesLinesByWidth(ww, mini);
+    });
 
     // Mouse interactions: single-click flips, double-click toggles reading
     installClickHandlers();
@@ -149,12 +260,12 @@ public class StealthStage extends Stage {
              case DIGIT4: rateAndHide(com.memorizer.model.Rating.EASY); break;
              case ESCAPE: hideWithSnooze(); break;
             case S: skipCurrent(); break;
-             case M: toggleMode(); break; // 新增：切换 Normal/Mini
-             default: break;
-         }
-     });
+            case M: toggleMode(); break; // 新增：切换 Normal/Mini
+            case T: toggleTheme(); break; // 切换 黑/白 主题
+            default: break;
+        }
+    });
 
-     applyMode(currentMode);
  }
 
  private void installClickHandlers() {
@@ -178,97 +289,168 @@ public class StealthStage extends Stage {
  public void setUIMode(UIMode mode) {
      if (mode == null || mode == currentMode) return;
      currentMode = mode;
+     // responsive: toggle 'narrow' class if width < 900px
+     getScene().widthProperty().addListener((o,ov,nv) -> {
+         if (nv != null) {
+             boolean narrow = nv.doubleValue() < 900;
+             if (narrow && !root.getStyleClass().contains("narrow")) root.getStyleClass().add("narrow");
+             if (!narrow) root.getStyleClass().remove("narrow");
+         }
+     });
+
+     buildDrawerGrid();
      applyMode(currentMode);
-     applyPositionForMode();
-     // persist preference
-     com.memorizer.app.Config.set("app.ui.mode", currentMode == UIMode.MINI ? "mini" : "normal");
+     // cache content during anims to avoid jitter
+     root.setCache(true);
+    applyPositionForMode();
+    // persist preference
+    com.memorizer.app.Config.set("app.ui.mode", currentMode == UIMode.MINI ? "mini" : "normal");
+     // notify main/study windows to refresh indicators if present
+     try { com.memorizer.ui.MainStage m = com.memorizer.app.AppContext.getMain(); if (m != null) m.refreshModeIndicatorInStudy(); } catch (Exception ignored) {}
  }
  public void toggleMode() {
      setUIMode(currentMode == UIMode.NORMAL ? UIMode.MINI : UIMode.NORMAL);
  }
 
- private void applyMode(UIMode mode) {
-     if (mode == UIMode.MINI) {
-         // entering MINI: hide secondary fields and stop examples roller
-         if (examplesTimeline != null) { examplesTimeline.stop(); examplesTimeline = null; }
-         readingLabel.setVisible(false);
-         posLabel.setVisible(false);
-         examplesBox.setVisible(false);
-         // compact button texts for mini
-         btn1.setText("1"); btn2.setText("2"); btn3.setText("3"); btn4.setText("4");
-         // rebuild mini bar fresh to ensure nodes are correctly parented
-         miniBar = buildMiniRoot();
-         root.setCenter(miniBar);
-     } else {
-         // entering NORMAL: restore visibility and ensure examples area is repopulated
-         readingLabel.setVisible(true);
-         posLabel.setVisible(true);
-         examplesBox.setVisible(true);
-         // descriptive button texts for normal
-         btn1.setText("Again"); btn2.setText("Hard"); btn3.setText("Good"); btn4.setText("Easy");
-         // rebuild normal bar fresh to restore full layout
-         normalBar = buildNormalRoot();
-         root.setCenter(normalBar);
-         // restart examples display if we have cached items
-         if (currentExamples != null && !currentExamples.isEmpty()) {
-             setExamples(currentExamples);
-         }
-     }
-     // keep front/back consistent with current side
-     frontLabel.setVisible(showingFront);
-     backLabel.setVisible(!showingFront);
-     refreshTodayProgress();
+ // === 主题切换 ===
+ public void setTheme(ThemeMode theme) {
+     if (theme == null || theme == currentTheme) return;
+     currentTheme = theme;
+     applyDrawerTheme(currentTheme == ThemeMode.DARK);
+     com.memorizer.app.Config.set("app.ui.theme", currentTheme == ThemeMode.LIGHT ? "light" : "dark");
+     // Reapply mode visibility to ensure nodes become visible/managed after swap
+     applyMode(currentMode);
  }
+ public void toggleTheme() { setTheme(currentTheme == ThemeMode.DARK ? ThemeMode.LIGHT : ThemeMode.DARK); }
+ private void applyTheme(ThemeMode theme) { /* legacy no-op */ }
+
+ private void applyDrawerTheme(boolean dark) {
+     java.util.List<String> ss = getScene().getStylesheets();
+     ss.clear();
+     String sel = dark ? "/css/drawer-dark.css" : "/css/drawer-light.css";
+     try {
+         java.net.URL u = StealthStage.class.getResource(sel);
+         if (u != null) ss.add(u.toExternalForm());
+     } catch (Exception ignored) {}
+    root.getStyleClass().removeAll("taskbar-dark","taskbar-light");
+    root.getStyleClass().add(dark?"taskbar-dark":"taskbar-light");
+}
+
+ private void applyMode(UIMode mode) {
+     boolean mini = (mode == UIMode.MINI);
+     // center lines visibility (Normal shows B/C; Mini hides B/C)
+     if (frontLabel != null) {
+         frontLabel.setWrapText(!mini);
+         limitLabelLines(frontLabel, mini ? 1 : 2);
+     }
+     if (backLabel != null) {
+         backLabel.setWrapText(!mini);
+         limitLabelLines(backLabel, mini ? 1 : 2);
+         backLabel.setVisible(true); backLabel.setManaged(true);
+     }
+     if (readingPosLabel != null) {
+         readingPosLabel.setVisible(true); readingPosLabel.setManaged(true);
+     }
+    if (examplesScroll != null && examplesMini != null) {
+        examplesScroll.setVisible(!mini); examplesScroll.setManaged(!mini);
+        examplesMini.setVisible(mini);    examplesMini.setManaged(mini);
+    }
+    if (mini) startMiniExamplesMarquee(); else stopMiniExamplesMarquee();
+    // right clusters (answers)
+    if (answersMini != null) { answersMini.setVisible(mini); answersMini.setManaged(mini); }
+    if (answersNormal != null) { answersNormal.setVisible(!mini); answersNormal.setManaged(!mini); }
+     // progress text: hide in Mini (bar only)
+    if (progressBox != null) {
+        // In mini, bar only (hide all text nodes). In normal, show both.
+        for (int i = 1; i < progressBox.getChildren().size(); i++) {
+            Node n = progressBox.getChildren().get(i);
+            n.setVisible(!mini); n.setManaged(!mini);
+        }
+    }
+     // separators
+     if (allVerticalSeps != null) {
+         for (Separator s : allVerticalSeps) { s.setVisible(!mini); s.setManaged(!mini); }
+     }
+    // strict heights by DPI
+    double scale = 1.0; try { int dpi = java.awt.Toolkit.getDefaultToolkit().getScreenResolution(); scale = Math.max(1.0, dpi / 96.0); } catch (Throwable ignored) {}
+    double h = mini ? 44*scale : 76*scale;
+    setHeight(h);
+    // style class for padding differences and CSS overrides
+    root.getStyleClass().removeAll("taskbar-mini","taskbar-normal","mini");
+    root.getStyleClass().add(mini ? "taskbar-mini" : "taskbar-normal");
+    refreshTodayProgress();
+}
 
  // === Normal 布局 ===
  private Pane buildNormalRoot() {
      // 左侧控制列
-     VBox left = new VBox(6, btnEdit, batchInfo);
-     left.setAlignment(Pos.CENTER);
+    VBox left = new VBox(6, btnEdit, batchInfo);
+    left.setAlignment(Pos.TOP_CENTER);
      left.setPadding(new Insets(6, 10, 6, 10));
      left.setMinWidth(60);
 
-     // 主显示列（front/back + reading）
-     VBox main = new VBox(2, frontLabel, readingLabel, backLabel);
-     main.setAlignment(Pos.CENTER_LEFT);
-     main.setPadding(new Insets(8, 8, 8, 8));
-     HBox.setHgrow(main, Priority.ALWAYS);      // 关键：主区吃满
-     frontLabel.setAlignment(Pos.CENTER_LEFT);
-     backLabel.setAlignment(Pos.CENTER_LEFT);
-     readingLabel.setAlignment(Pos.CENTER_LEFT);
+    // 主显示列（横向排列：Front | Back(含 Reading)）
+    VBox backBox = new VBox(2, backLabel, readingLabel);
+    backBox.setAlignment(Pos.TOP_LEFT);
+    HBox main = new HBox(16, frontLabel, backBox);
+    main.setAlignment(Pos.TOP_LEFT);
+    main.setPadding(new Insets(8, 8, 8, 8));
+    HBox.setHgrow(main, Priority.ALWAYS);
+    HBox.setHgrow(frontLabel, Priority.ALWAYS);
+    HBox.setHgrow(backBox, Priority.ALWAYS);
+    frontLabel.setAlignment(Pos.CENTER_LEFT);
+    backLabel.setAlignment(Pos.CENTER_LEFT);
+    readingLabel.setAlignment(Pos.CENTER_LEFT);
 
     // 标签列（词性 + 计划类型）
     kindLabel.getStyleClass().add("pos-pill");
     kindLabel.setVisible(false);
     VBox tags = new VBox(6, posLabel, kindLabel);
-    tags.setAlignment(Pos.CENTER);
+    tags.setAlignment(Pos.TOP_CENTER);
     tags.setPadding(new Insets(6, 10, 6, 10));
 
-     // 例句区（先静态展示若干行）
-     examplesBox.setPadding(new Insets(6, 10, 6, 10));
-     examplesBox.setFillWidth(true);
-    VBox examples = new VBox(new Label(" "), examplesBox); // 顶部留一点空
+    // 例句区（滚动容器，超出显示滚动条）
+    examplesBox.setPadding(new Insets(6, 10, 6, 10));
+    examplesBox.setFillWidth(true);
+    examplesScroll.setFitToWidth(true);
+    examplesScroll.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+    examplesScroll.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
+    examplesScroll.setContent(examplesBox);
+    examplesScroll.setPrefViewportHeight(64);
+    examplesScroll.setFocusTraversable(false);
+    VBox examples = new VBox(new Label(" "), examplesScroll); // 顶部留一点空
     examples.setPrefWidth(360);
-     examples.setMinWidth(240);
-     examples.setMaxWidth(480);
+    examples.setMinWidth(240);
+    examples.setMaxWidth(480);
 
-     // 右侧操作列（Flip + 评分）
-     HBox ratings = new HBox(6, btn1, btn2, btn3, btn4);
-     VBox right = new VBox(8, btnFlip, ratings);
-     right.setAlignment(Pos.CENTER);
-     right.setPadding(new Insets(6, 10, 6, 10));
-     right.setMinWidth(220);
+    // 右侧操作列（Flip + 评分 + Today）
+    HBox ratings = new HBox(8, btn1, btn2, btn3, btn4);
+    HBox controlsRow = new HBox(10, btnFlip, ratings, todayLabel);
+    controlsRow.getStyleClass().add("controls");
+    HBox.setHgrow(controlsRow, Priority.NEVER);
+    controlsRow.setFillHeight(true);
+    controlsRow.setAlignment(Pos.BASELINE_RIGHT);
+    VBox right = new VBox(8, controlsRow);
+     right.setAlignment(Pos.CENTER_RIGHT);
+     right.setPadding(new Insets(8, 10, 8, 10));
+     right.setMinWidth(260);
 
      // 当日进度
      planLabel.getStyleClass().add("batch-info");
-    VBox today = new VBox(4, todayLabel, todayProgress, planLabel);
-     today.setAlignment(Pos.CENTER);
+    VBox today = new VBox(4, todayProgress, planLabel);
+     today.setAlignment(Pos.CENTER_RIGHT);
      today.setPadding(new Insets(6, 10, 6, 10));
 
   // 整行
-     HBox bar = new HBox(8, left, main, tags, examples, right, today);
-     bar.setAlignment(Pos.CENTER_LEFT);
-     bar.setPadding(new Insets(0, 8, 0, 8));
+    // small vertical separators between sections for clearer partitioning
+    javafx.scene.control.Separator s1 = vSep(); s1.getStyleClass().add("splitter");
+    javafx.scene.control.Separator s2 = vSep(); s2.getStyleClass().add("splitter");
+    javafx.scene.control.Separator s3 = vSep(); s3.getStyleClass().add("splitter");
+    javafx.scene.control.Separator s4 = vSep(); s4.getStyleClass().add("splitter");
+    javafx.scene.control.Separator s5 = vSep(); s5.getStyleClass().add("splitter");
+    HBox bar = new HBox(12, left, s1, main, s2, tags, s3, examples, s4, right, s5, today);
+    bar.setAlignment(Pos.TOP_LEFT);
+    bar.setPadding(new Insets(8, 12, 8, 12));
 
      // 让 examples 可被压缩（避免把主文本挤没了）
      examples.setMaxWidth(480);
@@ -288,24 +470,24 @@ public class StealthStage extends Stage {
         posLabel.setVisible(false);
         examplesBox.getChildren().clear();
 
-        HBox backRow = new HBox(6, readingLabel, backLabel);
-        backRow.setAlignment(Pos.CENTER);
-        VBox miniMain = new VBox(0, frontLabel, backRow);
-        miniMain.setAlignment(Pos.CENTER);
-        HBox.setHgrow(miniMain, Priority.SOMETIMES);
-
+        // Mini: single row toolbar + one-line front text with ellipsis
+        frontLabel.setWrapText(false);
+        frontLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        HBox buttons = new HBox(6, btnFlip, btn1, btn2, btn3, btn4);
+        buttons.getStyleClass().add("controls");
         HBox bar = new HBox(10,
                 btnEdit,
                 batchInfo,
                 leftSpring,
-                miniMain,
+                frontLabel,
                 rightSpring,
-                btnFlip,
-                new HBox(6, btn1, btn2, btn3, btn4),
+                buttons,
                 todayLabel
         );
-        bar.setAlignment(Pos.CENTER);
-        bar.setPadding(new Insets(6, 10, 6, 10));
+        HBox.setHgrow(frontLabel, Priority.ALWAYS);
+        bar.getStyleClass().add("mini");
+        bar.setAlignment(Pos.TOP_LEFT);
+        bar.setPadding(new Insets(8, 12, 8, 12));
         return bar;
     }
 
@@ -319,10 +501,16 @@ public class StealthStage extends Stage {
  // === 显示卡片内容（DTO） ===
  public void showCardView(StudyService.CardView v) {
 	    this.currentCardId = v.getCardId();
-	    frontLabel.setText(v.getFront() != null ? v.getFront() : "");
-	    backLabel.setText(v.getBack() != null ? v.getBack() : "");
-	    readingLabel.setText(v.getReading() != null ? v.getReading() : "");
+        String primary = v.getFront() != null ? v.getFront() : "";
+        String secondary = v.getBack() != null ? v.getBack() : "";
+        String reading = v.getReading() != null ? v.getReading() : "";
+        	frontLabel.setText(primary);
+	    backLabel.setText(secondary);
+	    readingLabel.setText(reading);
     posLabel.setText(v.getPos() != null ? v.getPos() : "");
+    String pos = v.getPos() != null ? v.getPos() : "";
+    String rp = reading.isEmpty() ? pos : (pos.isEmpty() ? reading : reading + "  " + pos);
+    readingPosLabel.setText(rp);
     // map plan kind to badge text + css class
     String ktxt = null;
     String kclass = null;
@@ -351,12 +539,32 @@ public class StealthStage extends Stage {
         kindLabel.setText("");
         kindLabel.setVisible(false);
     }
+        // Populate center lines
+        lineA.getChildren().clear();
+        lineA.getChildren().add(new Text(primary));
+        lineB.setText(reading == null ? "" : reading);
+        String example = null;
+        try {
+            java.util.List<String> exs = v.getExamples();
+            if (exs != null && !exs.isEmpty()) example = exs.get(0);
+        } catch (Throwable ignored) {}
+        lineC.setText(example == null ? "" : example);
+        examplesMini.setText(example == null ? "" : example);
+        boolean bEmpty = lineB.getText() == null || lineB.getText().trim().isEmpty();
+        boolean cEmpty = lineC.getText() == null || lineC.getText().trim().isEmpty();
+        if (currentMode == UIMode.NORMAL) {
+            lineB.setVisible(!bEmpty); lineB.setManaged(!bEmpty);
+            lineC.setVisible(!cEmpty); lineC.setManaged(!cEmpty);
+        }
+
 	    setExamples(v.getExamples());
 
 	    showingFront = true;
         flipPressCount = 0;
         readingShown = false;
         updateFaceVisibility();
+        // ensure key events land on the scene root (avoid space triggering focused buttons or selections)
+        try { if (getScene() != null && getScene().getRoot() != null) getScene().getRoot().requestFocus(); } catch (Exception ignored) {}
 
 	    updateBatchInfoLabel();
 	    refreshTodayProgress();
@@ -373,12 +581,20 @@ public class StealthStage extends Stage {
     boolean autoroll = Boolean.parseBoolean(com.memorizer.app.Config.get("app.ui.examples.autoroll", "true"));
     long intervalMs = com.memorizer.app.Config.getInt("app.ui.examples.roll-interval-ms", 2200);
 
-    if (currentExamples.isEmpty()) return;
+    if (currentExamples.isEmpty()) {
+        // hide examples containers when empty
+        examplesBox.getChildren().clear();
+        if (examplesCell != null) { examplesCell.setVisible(false); examplesCell.setManaged(false); }
+        if (examplesMini != null) { examplesMini.setVisible(false); examplesMini.setManaged(false); }
+        return;
+    }
 
     // show first item
     Label first = new Label(currentExamples.get(0));
     first.getStyleClass().add("example-line");
     examplesBox.getChildren().add(first);
+    if (examplesCell != null) { examplesCell.setVisible(true); examplesCell.setManaged(true); }
+    if (examplesMini != null) { examplesMini.setVisible(currentMode == UIMode.MINI); examplesMini.setManaged(currentMode == UIMode.MINI); }
 
     if (autoroll && currentExamples.size() > 1) {
         examplesTimeline = new Timeline(new KeyFrame(Duration.millis(Math.max(500, intervalMs)), e -> {
@@ -410,6 +626,38 @@ public class StealthStage extends Stage {
             count++; if (count >= max) break;
         }
     }
+
+    // update mini marquee label text
+    if (!currentExamples.isEmpty()) {
+        String miniText = currentExamples.get(0);
+        examplesMini.setText(miniText == null ? "" : miniText);
+        startMiniExamplesMarquee();
+    }
+ }
+
+ private void startMiniExamplesMarquee() {
+     if (currentMode != UIMode.MINI) { stopMiniExamplesMarquee(); return; }
+     if (examplesMini == null) return;
+     String txt = examplesMini.getText();
+     if (txt == null) txt = "";
+     examplesMini.setTranslateX(0);
+     stopMiniExamplesMarquee();
+     if (txt.length() < 28) return; // short text: no marquee
+     Text meas = new Text(txt);
+     meas.setFont(examplesMini.getFont());
+     double textW = meas.getLayoutBounds().getWidth();
+     examplesMiniMarquee = new Timeline(
+             new KeyFrame(Duration.ZERO, e -> examplesMini.setTranslateX(0)),
+             new KeyFrame(Duration.millis(80 * textW), e -> examplesMini.setTranslateX(-textW - 32))
+     );
+     examplesMiniMarquee.setCycleCount(Timeline.INDEFINITE);
+     examplesMiniMarquee.play();
+     examplesMini.setOnMouseEntered(e -> { if (examplesMiniMarquee != null) examplesMiniMarquee.pause(); });
+     examplesMini.setOnMouseExited(e -> { if (examplesMiniMarquee != null) examplesMiniMarquee.play(); });
+ }
+
+ private void stopMiniExamplesMarquee() {
+     if (examplesMiniMarquee != null) { examplesMiniMarquee.stop(); examplesMiniMarquee = null; }
  }
 
  private void refreshTodayProgress() {
@@ -433,26 +681,32 @@ public class StealthStage extends Stage {
          Stage owner = com.memorizer.app.AppContext.getOwner();
          if (owner != null) initOwner(owner);
      }
-     initStyle(StageStyle.UNDECORATED);
+     initStyle(StageStyle.TRANSPARENT);
      setAlwaysOnTop(true);
      setOpacity(Double.parseDouble(com.memorizer.app.Config.get("app.window.opacity","0.90")));
  }
 
- private void applyPositionForMode() {
-     String mode = currentMode == UIMode.MINI ? "mini" : "normal";
-     boolean overlay = Boolean.parseBoolean(com.memorizer.app.Config.get("app.window.overlay-taskbar", "false"));
-     Rectangle2D vis = Screen.getPrimary().getVisualBounds();
-     double screenW = vis.getWidth(), screenH = vis.getHeight(), screenX = vis.getMinX(), screenY = vis.getMinY();
+    private void applyPositionForMode() {
+        String mode = currentMode == UIMode.MINI ? "mini" : "normal";
+        boolean overlay = Boolean.parseBoolean(com.memorizer.app.Config.get("app.window.overlay-taskbar", "false"));
+        Rectangle2D vis = Screen.getPrimary().getVisualBounds();
+        double screenW = vis.getWidth(), screenH = vis.getHeight(), screenX = vis.getMinX(), screenY = vis.getMinY();
 
      if ("mini".equalsIgnoreCase(mode)) {
-         double h = com.memorizer.app.Config.getInt("app.window.mini.height", 40);
+         double scale = 1.0;
+         try { int dpi = java.awt.Toolkit.getDefaultToolkit().getScreenResolution(); scale = Math.max(1.0, dpi / 96.0); } catch (Throwable ignored) {}
+         double h = 44 * scale; // strict mini height
+         int pad = 8;
          double frac = Double.parseDouble(com.memorizer.app.Config.get("app.window.mini.width-fraction","0.5"));
          double w = Math.max(320, screenW * frac);
          setWidth(w); setHeight(h);
          setX(screenX + (screenW - w)/2.0);
-         setY(screenY + screenH - h - 2);
+         setY(screenY + screenH - h - Math.max(2, pad));
      } else {
-         double h = com.memorizer.app.Config.getInt("app.window.stealth.height", 64);
+         double scale = 1.0;
+         try { int dpi = java.awt.Toolkit.getDefaultToolkit().getScreenResolution(); scale = Math.max(1.0, dpi / 96.0); } catch (Throwable ignored) {}
+         double h = 76 * scale; // strict normal 2-row height
+         int pad = 8;
          double frac = Double.parseDouble(com.memorizer.app.Config.get("app.window.stealth.width-fraction","0.98"));
          double w = Math.max(480, screenW * frac);
 
@@ -463,7 +717,7 @@ public class StealthStage extends Stage {
          } else {
              setWidth(w); setHeight(h);
              setX(screenX + (screenW - w)/2.0);
-             setY(screenY + screenH - h - 2);
+             setY(screenY + screenH - h - Math.max(2, pad));
          }
      }
  }
@@ -528,19 +782,202 @@ public class StealthStage extends Stage {
          readingShown = !readingShown;
      }
      updateFaceVisibility();
- }
- 
- private void updateFaceVisibility() {
+    }
+
+    private void updateFaceVisibility() {
      if (showingFront) {
-         frontLabel.setVisible(true);
-         backLabel.setVisible(false);
-         readingLabel.setVisible(false);
+        frontLabel.setVisible(true);
+        frontLabel.setManaged(true);
+        backLabel.setVisible(false);
+        backLabel.setManaged(false);
+        readingLabel.setVisible(false);
+        readingLabel.setManaged(false);
      } else {
-         frontLabel.setVisible(false);
-         backLabel.setVisible(true);
-         readingLabel.setVisible(readingShown);
+        frontLabel.setVisible(false);
+        frontLabel.setManaged(false);
+        backLabel.setVisible(true);
+        backLabel.setManaged(true);
+        readingLabel.setVisible(readingShown);
+        readingLabel.setManaged(readingShown);
      }
  }
+
+ private javafx.scene.control.Separator vSep() {
+     javafx.scene.control.Separator sp = new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL);
+     sp.getStyleClass().add("v-sep");
+     sp.setMinWidth(1);
+     sp.setPrefWidth(1);
+     sp.setMaxWidth(1);
+     return sp;
+ }
+
+ // 将 Label 限制为 N 行（通过剪裁实现粗略行数限制）
+    private void limitLabelLines(Label label, int lines) {
+        if (label == null || lines < 1) return;
+        label.setWrapText(true);
+        label.applyCss();
+        double fs = label.getFont() == null ? 14 : label.getFont().getSize();
+        double lh = fs * 1.3;
+        double maxH = lh * lines;
+        label.setMaxHeight(maxH);
+        label.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        label.layoutBoundsProperty().addListener((obs, oldB, newB) -> {
+            clip.setWidth(newB.getWidth());
+            clip.setHeight(maxH);
+        });
+        label.setClip(clip);
+    }
+
+    // Build GridPane drawer root with center 3 lines and right/left clusters
+    private void buildDrawerGrid() {
+        if (drawerRoot != null) { root.setCenter(drawerRoot); return; }
+        drawerRoot = new GridPane();
+        drawerRoot.setHgap(0); drawerRoot.setVgap(0);
+
+        // Build 15 columns: C0 S C1 S C2 S C3 S C4 S C5 S C6 S C7
+        java.util.List<ColumnConstraints> cols = new java.util.ArrayList<>();
+        ColumnConstraints c0 = new ColumnConstraints(); c0.setMinWidth(84); c0.setPrefWidth(92); c0.setHgrow(Priority.NEVER); cols.add(c0);
+        ColumnConstraints s01 = new ColumnConstraints(); s01.setMinWidth(1); s01.setPrefWidth(1); cols.add(s01);
+        ColumnConstraints c1 = new ColumnConstraints(); c1.setHgrow(Priority.SOMETIMES); cols.add(c1);
+        ColumnConstraints s12 = new ColumnConstraints(); s12.setMinWidth(1); s12.setPrefWidth(1); cols.add(s12);
+        ColumnConstraints c2 = new ColumnConstraints(); c2.setMinWidth(110); c2.setPrefWidth(130); cols.add(c2); this.colC2 = c2;
+        ColumnConstraints s23 = new ColumnConstraints(); s23.setMinWidth(1); s23.setPrefWidth(1); cols.add(s23);
+        ColumnConstraints c3 = new ColumnConstraints(); c3.setHgrow(Priority.SOMETIMES); cols.add(c3);
+        ColumnConstraints s34 = new ColumnConstraints(); s34.setMinWidth(1); s34.setPrefWidth(1); cols.add(s34);
+        ColumnConstraints c4 = new ColumnConstraints(); c4.setHgrow(Priority.ALWAYS); cols.add(c4); this.colC4 = c4;
+        ColumnConstraints s45 = new ColumnConstraints(); s45.setMinWidth(1); s45.setPrefWidth(1); cols.add(s45);
+        ColumnConstraints c5 = new ColumnConstraints(); c5.setMinWidth(76); c5.setPrefWidth(84); cols.add(c5);
+        ColumnConstraints s56 = new ColumnConstraints(); s56.setMinWidth(1); s56.setPrefWidth(1); cols.add(s56);
+        ColumnConstraints c6 = new ColumnConstraints(); c6.setMinWidth(180); c6.setPrefWidth(188); cols.add(c6);
+        ColumnConstraints s67 = new ColumnConstraints(); s67.setMinWidth(1); s67.setPrefWidth(1); cols.add(s67);
+        ColumnConstraints c7 = new ColumnConstraints(); c7.setMinWidth(180); c7.setPrefWidth(200); cols.add(c7);
+        drawerRoot.getColumnConstraints().addAll(cols);
+
+        // C0: Edit button
+        btnEdit.getStyleClass().add("cell-edit");
+        GridPane.setValignment(btnEdit, VPos.CENTER);
+        drawerRoot.add(btnEdit, 0, 0);
+
+        // separators storage helper
+        java.util.function.Function<Integer, Separator> sepAt = idx -> {
+            Separator sp = new Separator(javafx.geometry.Orientation.VERTICAL);
+            GridPane.setValignment(sp, VPos.CENTER);
+            allVerticalSeps.add(sp); return sp;
+        };
+
+        // add seps at correct columns
+        drawerRoot.add(sepAt.apply(1), 1, 0);
+        drawerRoot.add(sepAt.apply(3), 3, 0);
+        drawerRoot.add(sepAt.apply(5), 5, 0);
+        drawerRoot.add(sepAt.apply(7), 7, 0);
+        drawerRoot.add(sepAt.apply(9), 9, 0);
+        drawerRoot.add(sepAt.apply(11), 11, 0);
+        drawerRoot.add(sepAt.apply(13), 13, 0);
+
+        // C1: FRONT (Label, wraps up to 2 lines in Normal)
+        frontLabel.getStyleClass().add("cell-front");
+        frontLabel.setWrapText(true);
+        GridPane.setValignment(frontLabel, VPos.CENTER);
+        drawerRoot.add(frontLabel, 2, 0);
+
+        // C2: Reading/Pos (small, ellipsis)
+        readingPosLabel.getStyleClass().add("cell-reading");
+        readingPosLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        GridPane.setValignment(readingPosLabel, VPos.CENTER);
+        drawerRoot.add(readingPosLabel, 4, 0);
+
+        // C3: BACK (Label, wraps up to 2 lines in Normal)
+        backLabel.getStyleClass().add("cell-back");
+        backLabel.setWrapText(true);
+        GridPane.setValignment(backLabel, VPos.CENTER);
+        drawerRoot.add(backLabel, 6, 0);
+
+        // C4: EXAMPLES (Normal: TextFlow wrapped; Mini: single-line marquee)
+        examplesCell = new VBox(2);
+        examplesCell.getStyleClass().add("cell-examples");
+        examplesCell.setFillWidth(true);
+        // Normal flow (reuse examplesBox/examplesScroll)
+        examplesScroll.setFitToWidth(true);
+        examplesCell.getChildren().add(examplesScroll);
+        // Mini single-line label inside clipped wrapper (for marquee)
+        examplesMini.setTextOverrun(OverrunStyle.ELLIPSIS);
+        examplesMini.getStyleClass().add("line-sub");
+        StackPane miniWrap = new StackPane(examplesMini);
+        javafx.scene.shape.Rectangle miniClip = new javafx.scene.shape.Rectangle();
+        miniWrap.layoutBoundsProperty().addListener((oo,ov,nv)->{
+            if (nv != null) { miniClip.setWidth(nv.getWidth()); miniClip.setHeight(nv.getHeight()); }
+        });
+        miniWrap.setClip(miniClip);
+        examplesCell.getChildren().add(miniWrap);
+        GridPane.setValignment(examplesCell, VPos.CENTER);
+        drawerRoot.add(examplesCell, 8, 0);
+
+        // C5: Flip (single button)
+        btnFlip.getStyleClass().add("cell-flip");
+        GridPane.setValignment(btnFlip, VPos.CENTER);
+        drawerRoot.add(btnFlip, 10, 0);
+
+        // C6: Answers (Normal: 2x2 grid; Mini: 1 row HBox)
+        answersNormal = new GridPane(); answersNormal.setHgap(8); answersNormal.setVgap(8);
+        answersNormal.getStyleClass().add("cell-answers");
+        // equal column widths for 2x2 grid
+        ColumnConstraints a0 = new ColumnConstraints(); a0.setPercentWidth(50); a0.setHgrow(Priority.ALWAYS);
+        ColumnConstraints a1 = new ColumnConstraints(); a1.setPercentWidth(50); a1.setHgrow(Priority.ALWAYS);
+        answersNormal.getColumnConstraints().addAll(a0, a1);
+        answersNormal.add(btn1, 0, 0); answersNormal.add(btn2, 1, 0);
+        answersNormal.add(btn3, 0, 1); answersNormal.add(btn4, 1, 1);
+        GridPane.setHgrow(btn1, Priority.ALWAYS); GridPane.setHgrow(btn2, Priority.ALWAYS);
+        GridPane.setHgrow(btn3, Priority.ALWAYS); GridPane.setHgrow(btn4, Priority.ALWAYS);
+        btn1.setMaxWidth(Double.MAX_VALUE); btn2.setMaxWidth(Double.MAX_VALUE);
+        btn3.setMaxWidth(Double.MAX_VALUE); btn4.setMaxWidth(Double.MAX_VALUE);
+        // Create dedicated mini buttons to avoid reparenting
+        Button m1 = new Button("1"); m1.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.AGAIN));  m1.getStyleClass().addAll("controls","btn-answer","btn-again"); m1.setTooltip(new Tooltip("Again (1)"));
+        Button m2 = new Button("2"); m2.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.HARD));   m2.getStyleClass().addAll("controls","btn-answer","btn-hard");  m2.setTooltip(new Tooltip("Hard (2)"));
+        Button m3 = new Button("3"); m3.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.GOOD));   m3.getStyleClass().addAll("controls","btn-answer","btn-good");  m3.setTooltip(new Tooltip("Good (3)"));
+        Button m4 = new Button("4"); m4.setOnAction(e -> rateAndHide(com.memorizer.model.Rating.EASY));   m4.getStyleClass().addAll("controls","btn-answer","btn-easy");  m4.setTooltip(new Tooltip("Easy (4)"));
+        answersMini = new HBox(8, m1, m2, m3, m4); answersMini.getStyleClass().add("cell-answers");
+        answersMini.setAlignment(Pos.BASELINE_CENTER);
+        HBox.setHgrow(m1, Priority.ALWAYS); HBox.setHgrow(m2, Priority.ALWAYS);
+        HBox.setHgrow(m3, Priority.ALWAYS); HBox.setHgrow(m4, Priority.ALWAYS);
+        m1.setMaxWidth(Double.MAX_VALUE); m2.setMaxWidth(Double.MAX_VALUE);
+        m3.setMaxWidth(Double.MAX_VALUE); m4.setMaxWidth(Double.MAX_VALUE);
+        VBox answersCell = new VBox(8, answersMini, answersNormal);
+        answersCell.setAlignment(Pos.CENTER);
+        GridPane.setValignment(answersCell, VPos.CENTER);
+        drawerRoot.add(answersCell, 12, 0);
+
+        // C7: Progress (Normal: bar over text; Mini: bar only)
+        progressBox = new VBox(4);
+        progressBox.getStyleClass().add("cell-progress");
+        progressBox.getChildren().addAll(todayProgress, todayLabel, batchInfo);
+        progressBox.setAlignment(Pos.CENTER_RIGHT);
+        GridPane.setValignment(progressBox, VPos.CENTER);
+        drawerRoot.add(progressBox, 14, 0);
+        todayProgress.getStyleClass().add("progress-large");
+        // Ensure answers visible/managed (never hidden by legacy code)
+        java.util.stream.Stream.of(btn1, btn2, btn3, btn4).forEach(b -> { b.setVisible(true); b.setManaged(true); });
+
+        root.setCenter(drawerRoot);
+        // Vertical centering on all children in the single row
+        for (Node n : drawerRoot.getChildren()) { GridPane.setValignment(n, VPos.CENTER); }
+        // baseline align for answers row in mini
+        if (answersMini != null) answersMini.setAlignment(Pos.BASELINE_CENTER);
+    }
+
+    private void adjustExamplesLinesByWidth(double ww, boolean mini) {
+        if (mini) {
+            // in mini, optionally marquee handled separately
+            return;
+        }
+        // adjust visible lines by viewport height
+        if (examplesScroll != null) {
+            if (ww > 1280) examplesScroll.setPrefViewportHeight(64);
+            else if (ww > 1100) examplesScroll.setPrefViewportHeight(48);
+            else if (ww > 980) examplesScroll.setPrefViewportHeight(34);
+            else examplesScroll.setPrefViewportHeight(24);
+        }
+    }
 
  public void skipCurrent() {
      if (study != null) {

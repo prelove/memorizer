@@ -1,0 +1,94 @@
+/* Anki-like Drawer Theme for JavaFX 8 */
+/* Tokens (documented via comments; JavaFX8 lacks CSS vars)
+   bg-drawer: rgba(14,17,22,.95)
+   bg-card:   #161A22
+   txt-main:  #E6EAF2
+   txt-sub:   #9AA3B2
+   accent:    #4C8DF6
+   divider:   #2A2F3A
+   again: #F97373, hard: #F5A524, good: #22C55E, easy: #8B5CF6
+*/
+
+/* Root drawer container */
+.drawer, #ankiDrawer {
+  -fx-background-color: rgba(14,17,22,0.95); /* BG_DRAWER */
+  -fx-background-radius: 12; /* rounded corners ~10–12px */
+  -fx-padding: 12; /* outer 12px */
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 18, 0.25, 0, 2);
+  -fx-font-family: "Noto Sans SC", "Noto Sans JP", "Inter", "Segoe UI", sans-serif;
+  -fx-text-fill: #E6EAF2; /* TXT_MAIN */
+}
+
+.text-primary { -fx-text-fill: #E6EAF2; }
+.text-secondary { -fx-text-fill: #9AA3B2; }
+
+/* Card surface */
+.card {
+  -fx-background-color: #161A22; /* BG_CARD */
+  -fx-background-radius: 10;
+  -fx-padding: 16; /* inner 16px */
+}
+
+/* Buttons */
+.btn {
+  -fx-text-fill: #E6EAF2;
+  -fx-background-insets: 0;
+  -fx-background-radius: 8;
+  -fx-padding: 6 12 6 12; /* ~32–36px height with font */
+  -fx-cursor: hand;
+  -fx-font-weight: 700;
+}
+.btn:hover { -fx-opacity: 0.92; }
+.btn:pressed { -fx-scale-x: 0.98; -fx-scale-y: 0.98; }
+
+.btn-again { -fx-background-color: #F97373; }
+.btn-hard  { -fx-background-color: #F5A524; -fx-text-fill: #111; }
+.btn-good  { -fx-background-color: #22C55E; -fx-text-fill: #0e1a16; }
+.btn-easy  { -fx-background-color: #8B5CF6; }
+
+/* Badges */
+.badge {
+  -fx-background-color: #2A2F3A; /* DIVIDER */
+  -fx-text-fill: #9AA3B2; /* TXT_SUB */
+  -fx-padding: 2 8 2 8;
+  -fx-background-radius: 999;
+  -fx-font-size: 11px;
+}
+
+/* Controls cluster */
+.controls {
+  -fx-spacing: 8;
+  -fx-alignment: center-right;
+  -fx-min-height: 36; -fx-pref-height: 36; -fx-max-height: 40;
+}
+
+.narrow .btn {
+  -fx-padding: 4 8 4 8;
+}
+.narrow .today-label { -fx-font-size: 11px; }
+
+/* Mini mode tweaks */
+.mini .split-pane > .split-pane-divider,
+.mini .v-sep, .mini .splitter { -fx-background-color: transparent; -fx-opacity: 0; -fx-padding: 0; }
+.mini .card-text { -fx-fill: #E6EAF2; }
+.mini .one-line { -fx-text-fill: #E6EAF2; }
+
+/* Splitter alias */
+.splitter { -fx-opacity: 0.6; }
+
+/* SplitPane divider: ~1px, low contrast, highlight on hover */
+.split-pane > .split-pane-divider {
+  -fx-padding: 0 2 0 2; /* thin hit area */
+  -fx-background-color: transparent;
+}
+.split-pane > .split-pane-divider:hover {
+  -fx-background-color: #2A2F3A; /* DIVIDER */
+}
+
+/* Text body (CJK + Latin) */
+.card-text {
+  -fx-fill: #E6EAF2; /* TXT_MAIN */
+}
+.card-subtext {
+  -fx-fill: #9AA3B2; /* TXT_SUB */
+}

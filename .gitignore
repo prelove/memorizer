@@ -1,8 +1,26 @@
 # 忽略 Maven 构建目录
 /target/
 
+.pnpm-store/
+dist/
+build/
+out/
+.target/
+target/
+.gradle/
+.mvn/
+.next/
+.svelte-kit/
+coverage/
+.cache/
+
 # 忽略日志目录
-/logs/
+logs/
+*.log
+data/
+tmp/
+*.sqlite
+*.db
 
 # Java 编译文件
 *.class

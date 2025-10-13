@@ -1,41 +1,54 @@
 /* Stealth banner theme (cross‑platform defaults) */
-.stealth-root {
+/* Theme containers */
+.stealth-root { -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Helvetica Neue", Arial, sans-serif; }
+.stealth-root.theme-dark {
   -fx-background-color: #1f2327;
   -fx-border-color: #121417;
   -fx-border-width: 1 0 0 0;
-  -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Helvetica Neue", Arial, sans-serif;
+  -fx-font-size: 13px;
+}
+.stealth-root.theme-light {
+  -fx-background-color: #f7f7f7;
+  -fx-border-color: #e0e0e0;
+  -fx-border-width: 1 0 0 0;
   -fx-font-size: 13px;
 }
 
 /* Text roles */
-.front {
-  -fx-text-fill: #f1f3f5;
-  -fx-font-weight: 600;
-  -fx-font-size: 17px;
-}
+.front { -fx-font-weight: 600; }
+.theme-dark .front { -fx-text-fill: #f1f3f5; }
+.theme-light .front { -fx-text-fill: #111315; }
+.mode-normal .front { -fx-font-size: 22px; }
+.mode-mini .front { -fx-font-size: 20px; }
 .front.kind-due { -fx-text-fill: #d7e8ff; }
 .front.kind-leech { -fx-text-fill: #ffd0d0; }
 .front.kind-new { -fx-text-fill: #c7f3e6; }
 .front.kind-chal { -fx-text-fill: #ead6ff; }
-.back {
-  -fx-text-fill: #e8e8e8;
-  -fx-font-size: 15px;
-}
+.back {}
+.theme-dark .back { -fx-text-fill: #e8e8e8; }
+.theme-light .back { -fx-text-fill: #202529; }
+
+/* Avoid washed-out tinted text on light theme for kind-*; keep strong readable color */
+.theme-light .front.kind-due,
+.theme-light .front.kind-leech,
+.theme-light .front.kind-new,
+.theme-light .front.kind-chal { -fx-text-fill: #111315; }
+.theme-light .back.kind-due,
+.theme-light .back.kind-leech,
+.theme-light .back.kind-new,
+.theme-light .back.kind-chal { -fx-text-fill: #202529; }
+.mode-normal .back { -fx-font-size: 18px; }
+.mode-mini .back { -fx-font-size: 16px; }
 .back.kind-due { -fx-text-fill: #d7e8ff; }
 .back.kind-leech { -fx-text-fill: #ffd0d0; }
 .back.kind-new { -fx-text-fill: #c7f3e6; }
 .back.kind-chal { -fx-text-fill: #ead6ff; }
-.reading {
-  -fx-text-fill: #cfd3d7;
-  -fx-font-size: 12px;
-}
-.pos-pill {
-  -fx-font-size: 12px;
-  -fx-background-color: #303438;
-  -fx-text-fill: #bdbdbd;
-  -fx-padding: 2 8 2 8;
-  -fx-background-radius: 12;
-}
+.reading { -fx-font-size: 12px; }
+.theme-dark .reading { -fx-text-fill: #cfd3d7; }
+.theme-light .reading { -fx-text-fill: #586069; }
+.pos-pill { -fx-font-size: 12px; -fx-padding: 2 8 2 8; -fx-background-radius: 12; }
+.theme-dark .pos-pill { -fx-background-color: #303438; -fx-text-fill: #bdbdbd; }
+.theme-light .pos-pill { -fx-background-color: #e9ecef; -fx-text-fill: #6c757d; }
 .pos-pill.kind-due { -fx-background-color: #283a5b; -fx-text-fill: #cfe4ff; }
 .pos-pill.kind-leech { -fx-background-color: #5a2d2d; -fx-text-fill: #ffd7d7; }
 .pos-pill.kind-new { -fx-background-color: #1f473b; -fx-text-fill: #bff0df; }
@@ -46,19 +59,15 @@
 }
 
 /* Examples */
-.example-line {
-  -fx-text-fill: #c8c8c8;
-  -fx-font-size: 12px;
-}
+.example-line { -fx-font-size: 12px; }
+.theme-dark .example-line { -fx-text-fill: #c8c8c8; }
+.theme-light .example-line { -fx-text-fill: #495057; }
 
 /* Buttons */
-.stealth-root .button {
-  -fx-text-fill: #e6e6e6;
-  -fx-background-color: #2a2f34;
-}
-.stealth-root .button:hover {
-  -fx-background-color: #343a40;
-}
+.theme-dark .button { -fx-text-fill: #e6e6e6; -fx-background-color: #2a2f34; }
+.theme-dark .button:hover { -fx-background-color: #343a40; }
+.theme-light .button { -fx-text-fill: #2a2f34; -fx-background-color: #e9ecef; }
+.theme-light .button:hover { -fx-background-color: #dee2e6; }
 .button.btn-rating {
   -fx-padding: 4 10 4 10;
   -fx-background-radius: 6;
@@ -69,13 +78,22 @@
 }
 
 /* Today progress */
-.today-label {
-  -fx-text-fill: #d0d0d0;
-}
-.progress-bar.today-progress > .track {
-  -fx-background-color: #2a2f34;
-}
-.progress-bar.today-progress > .bar {
-  -fx-background-color: linear-gradient(to right, #3fb950, #2ea043);
-}
+.today-label {}
+.theme-dark .today-label { -fx-text-fill: #d0d0d0; }
+.theme-light .today-label { -fx-text-fill: #495057; }
+.theme-dark .progress-bar.today-progress > .track { -fx-background-color: #2a2f34; }
+.theme-light .progress-bar.today-progress > .track { -fx-background-color: #e9ecef; }
+.progress-bar.today-progress > .bar { -fx-background-color: linear-gradient(to right, #3fb950, #2ea043); }
+
+/* ScrollPane chrome for examples */
+.theme-dark .scroll-pane > .viewport { -fx-background-color: transparent; }
+.theme-dark .scroll-pane { -fx-background-color: transparent; }
+.theme-light .scroll-pane > .viewport { -fx-background-color: transparent; }
+.theme-light .scroll-pane { -fx-background-color: transparent; }
+
+/* Thin vertical separators between sections */
+.v-sep { -fx-opacity: 0.6; -fx-padding: 0 2 0 2; }
+.theme-dark .v-sep { -fx-opacity: 0.35; }
+.theme-dark .v-sep .line { -fx-background-color: #262b2f; }
+.theme-light .v-sep .line { -fx-background-color: #d7dadd; }
 

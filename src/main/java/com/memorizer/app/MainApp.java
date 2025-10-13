@@ -63,6 +63,7 @@ public class MainApp extends Application {
     public void stop() {
         try {
             if (trayManager != null) trayManager.shutdown();
+            try { com.memorizer.app.WebServerManager.get().stop(); } catch (Exception ignored) {}
             if (scheduler != null) scheduler.stop();
             H2ConsoleServer.stop();
             Database.stop();
