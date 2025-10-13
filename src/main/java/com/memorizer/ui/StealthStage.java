@@ -681,7 +681,8 @@ public class StealthStage extends Stage {
      int target = com.memorizer.app.Config.getInt("app.study.daily-target", 50);
      int done = 0;
      try { done = new StatsRepository().load().todayReviews; } catch (Exception ignored) {}
-     todayLabel.setText("Today: " + done + "/" + target);
+     int shown = (target > 0) ? Math.min(done, target) : done;
+     todayLabel.setText("Today: " + shown + "/" + target);
      todayProgress.setProgress(target > 0 ? Math.min(1.0, done / (double) target) : 0);
      // plan counts
      try {
