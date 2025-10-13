@@ -1,11 +1,15 @@
-#taskbarDrawer, .taskbar-light {
+.taskbar-light {
   -fx-background-radius: 12;
   -fx-background-insets: 0;
-  -fx-padding: 8 12 10 12; /* Normal */
+  -fx-padding: 11 12 7 12; /* Normal - slight shift down */
+  -fx-fg: #1F2430;            /* primary */
+  -fx-fg-muted: #5E697A;      /* secondary */
+  -fx-fg-disabled: #8B95A6;   /* disabled */
+  -fx-icon: #1F2430;          /* icons */
   -fx-background-color: linear-gradient(to bottom, #F3F4F6, #E9EBEF);
 }
-.taskbar-mini#taskbarDrawer, .taskbar-light.taskbar-mini {
-  -fx-padding: 6 10 8 10; /* Mini */
+.taskbar-light.taskbar-mini {
+  -fx-padding: 8 10 6 10; /* Mini - slight shift down */
 }
 
 .root {
@@ -38,12 +42,18 @@
 
 /* Cells */
 .cell-edit { }
-.cell-front, .cell-back {
+.cell-front {
   -fx-font-size: 20px;
   -fx-font-weight: 700;
   -fx-text-fill: -fx-text-base;
 }
-.cell-reading .label, .cell-reading { -fx-font-size: 12.5px; -fx-text-fill: -fx-text-base-secondary; }
+.cell-back {
+  -fx-font-size: 18px;
+  -fx-font-weight: 700;
+  -fx-text-fill: -fx-text-base;
+}
+.cell-reading .label, .cell-reading { -fx-font-size: 12.5px; }
+.muted { -fx-text-fill: -fx-fg-muted; }
 .cell-examples { -fx-padding: 0 8 0 8; }
 .taskbar-light .cell-examples,
 .taskbar-light .scroll-pane, .taskbar-light .scroll-pane > .viewport {
@@ -61,7 +71,8 @@
 
 /* Mini overrides */
 .taskbar-mini .cell-front, .taskbar-mini .cell-back { -fx-font-size: 17px; }
-.taskbar-mini .cell-progress .label { -fx-font-size: 0; }
+.taskbar-mini .today { -fx-font-size: 0; }
+.taskbar-mini .batch-info { -fx-font-size: 11px; }
 
 /* Progress */
 .cell-progress .progress-bar.progress-large { -fx-pref-height: 34; }
@@ -107,3 +118,19 @@
 .taskbar-light .scroll-pane > .viewport { -fx-background-color: transparent; }
 .taskbar-light .scroll-pane > .viewport > * { -fx-background-color: transparent; }
 .taskbar-light .scroll-pane > .corner { -fx-background-color: transparent; }
+
+/* Global text cascade to ensure visibility in light */
+.taskbar-light .label,
+.taskbar-light .text,
+.taskbar-light .button .text,
+.taskbar-light .toggle-button .text,
+.taskbar-light .menu-button .label,
+.taskbar-light .radio-button, .taskbar-light .check-box,
+.taskbar-light .tooltip,
+.taskbar-light .progress-indicator .percentage {
+  -fx-text-fill: -fx-fg;
+  -fx-fill: -fx-fg;
+}
+.taskbar-light .button:disabled .text,
+.taskbar-light .label:disabled { -fx-text-fill: -fx-fg-disabled; }
+.taskbar-light .ikonli-font-icon, .taskbar-light .svg-icon, .taskbar-light .glyph { -fx-fill: -fx-icon; }

@@ -32,6 +32,7 @@ public class StudyStage extends Stage {
         setMinHeight(320);
 
         VBox root = new VBox(12);
+        root.setAlignment(Pos.TOP_LEFT);
         root.setPadding(new Insets(16));
 
         // Keep default Modena look for Study window (no external CSS roles)
@@ -76,7 +77,11 @@ public class StudyStage extends Stage {
 
         root.getChildren().addAll(topBar, row1, row2, new Separator(), buttons);
 
-        Scene scene = new Scene(root);
+        // Wrap in a scrolling container to avoid clipping when content exceeds height
+        javafx.scene.control.ScrollPane sp = new javafx.scene.control.ScrollPane(root);
+        sp.setFitToWidth(true); sp.setFitToHeight(false);
+        sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+        Scene scene = new Scene(sp);
         scene.setOnKeyPressed(ev -> {
             if (ev.getCode() == KeyCode.SPACE) toggleFace();
             if (ev.getCode() == KeyCode.DIGIT1) { rate(Rating.AGAIN); loadNext(); }
@@ -86,15 +91,18 @@ public class StudyStage extends Stage {
         });
         setScene(scene);
 
-        // center on primary screen
-        javafx.geometry.Rectangle2D vb = Screen.getPrimary().getVisualBounds();
-        setX(vb.getMinX() + (vb.getWidth() - getMinWidth())/2.0);
-        setY(vb.getMinY() + (vb.getHeight() - getMinHeight())/2.0);
+        // Stage will be sized to work area in showAndFocus()
 
         loadNext();
     }
 
     public void showAndFocus() {
+        // Fit to OS work area so bottom edge is flush with taskbar
+        javafx.geometry.Rectangle2D vb = Screen.getPrimary().getVisualBounds();
+        setX(Math.floor(vb.getMinX()));
+        setY(Math.floor(vb.getMinY()));
+        setWidth(Math.ceil(vb.getWidth()));
+        setHeight(Math.ceil(vb.getHeight() + 1));
         if (!isShowing()) show();
         toFront(); requestFocus(); setIconified(false);
     }

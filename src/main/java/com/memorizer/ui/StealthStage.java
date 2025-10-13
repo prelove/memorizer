@@ -50,6 +50,7 @@ public class StealthStage extends Stage {
  private final Button btn2 = new Button("2");
  private final Button btn3 = new Button("3");
  private final Button btn4 = new Button("4");
+ private final Button btnAdd = new Button("Add");
 
  private final Label frontLabel = new Label(); // legacy
  private final Label backLabel  = new Label(); // legacy
@@ -63,6 +64,7 @@ public class StealthStage extends Stage {
  private final javafx.scene.control.ScrollPane examplesScroll = new javafx.scene.control.ScrollPane();
  private final Label todayLabel = new Label("Today: 0/0");
  private final ProgressBar todayProgress = new ProgressBar(0);
+ private ProgressBar todayProgressMini; // clone for mini row
  private final Label planLabel = new Label("");
 
  private boolean showingFront = true;
@@ -131,28 +133,31 @@ public class StealthStage extends Stage {
     backLabel.getStyleClass().add("back");
     readingLabel.getStyleClass().add("reading");
     posLabel.getStyleClass().add("pos-pill");
-    batchInfo.getStyleClass().add("batch-info");
+    batchInfo.getStyleClass().addAll("batch-info","muted");
 
     // 按钮样式（项目 CSS + app.css）
     // buttons styling classes (32px height via CSS .controls)
     btnFlip.getStyleClass().addAll("controls","btn-flip");
+    btnEdit.getStyleClass().addAll("controls","btn-flip");
+    btnAdd.getStyleClass().addAll("controls","btn-flip");
     // Normal mode uses text labels on main buttons
-    btn1.setText("Again");
-    btn2.setText("Hard");
-    btn3.setText("Good");
-    btn4.setText("Easy");
+    btn1.setText("Again (1)");
+    btn2.setText("Hard (2)");
+    btn3.setText("Good (3)");
+    btn4.setText("Easy (4)");
     btn1.getStyleClass().addAll("controls","btn-answer","btn-again");
     btn2.getStyleClass().addAll("controls","btn-answer","btn-hard");
     btn3.getStyleClass().addAll("controls","btn-answer","btn-good");
     btn4.getStyleClass().addAll("controls","btn-answer","btn-easy");
 
-    todayLabel.getStyleClass().add("today");
+    todayLabel.getStyleClass().addAll("today","muted");
     todayProgress.getStyleClass().add("today-progress");
      todayProgress.setPrefWidth(120);
      todayProgress.setMaxWidth(120);
      todayProgress.setMinWidth(120);
 
-     btnEdit.setTooltip(new Tooltip("Edit current card (open main window)"));
+     btnEdit.setTooltip(new Tooltip("Edit… (E)"));
+     btnAdd.setTooltip(new Tooltip("Add… (A)"));
      batchInfo.setTooltip(new Tooltip("Batch progress"));
      btn1.setTooltip(new Tooltip("Again (1)"));
      btn2.setTooltip(new Tooltip("Hard (2)"));
@@ -168,12 +173,16 @@ public class StealthStage extends Stage {
      btnSkip.setOnAction(e -> skipCurrent());
      btnSnooze.setOnAction(e -> hideWithSnooze());
 
-    btnEdit.setOnAction(e -> {
-        // 先打开主窗（具体“定位到编辑”下步实现）
-        com.memorizer.app.AppContext.getMain().showAndFocus();
-    });
+    btnEdit.setOnAction(e -> openEditPopup());
+    btnAdd.setOnAction(e -> openAddPopup());
     btnSkip.setTooltip(new Tooltip("Skip (S)"));
     btnSnooze.setTooltip(new Tooltip("Snooze & Hide"));
+    // Context menu: Add on right-click of Edit
+    javafx.scene.control.ContextMenu cm = new javafx.scene.control.ContextMenu();
+    javafx.scene.control.MenuItem miAdd = new javafx.scene.control.MenuItem("Add…");
+    miAdd.setOnAction(e -> openAddPopup());
+    cm.getItems().add(miAdd);
+    btnEdit.setOnContextMenuRequested(e -> cm.show(btnEdit, e.getScreenX(), e.getScreenY()));
 
     // 根容器
     root = new BorderPane();
@@ -207,26 +216,21 @@ public class StealthStage extends Stage {
         boolean mini = currentMode == UIMode.MINI;
         // hide progress text under ~1180px in Normal
         boolean tight1 = (!mini) && ww > 0 && ww < 1180;
-        if (progressBox != null && progressBox.getChildren().size() >= 3) {
-            Node t1 = progressBox.getChildren().get(1);
-            Node t2 = progressBox.getChildren().get(2);
-            boolean show = !mini && !tight1;
-            if (t1 != null) { t1.setVisible(show); t1.setManaged(show); }
-            if (t2 != null) { t2.setVisible(show); t2.setManaged(show); }
-        }
+        // Progress text visibility handled in applyMode (by swapping normal/mini rows)
         // clamp FRONT/BACK to 1 line under ~1060px in Normal
         boolean tight2 = (!mini) && ww > 0 && ww < 1060;
         limitLabelLines(frontLabel, tight2 ? 1 : (mini ? 1 : 2));
         limitLabelLines(backLabel,  tight2 ? 1 : (mini ? 1 : 2));
-        // collapse EXAMPLES under ~980px (hide it first)
+        // collapse EXAMPLES under ~980px (hide it first); only relevant in state 2
         boolean tight3 = ww > 0 && ww < 980;
+        int state = flipPressCount % 3;
         if (examplesScroll != null) {
-            boolean showNormal = (!mini) && !tight3;
+            boolean showNormal = (state == 2) && (!mini) && !tight3;
             examplesScroll.setVisible(showNormal);
             examplesScroll.setManaged(showNormal);
         }
         if (examplesMini != null) {
-            boolean showMini = mini && !tight3;
+            boolean showMini = (state == 2) && mini && !tight3;
             examplesMini.setVisible(showMini);
             examplesMini.setManaged(showMini);
         }
@@ -246,7 +250,7 @@ public class StealthStage extends Stage {
         adjustExamplesLinesByWidth(ww, mini);
     });
 
-    // Mouse interactions: single-click flips, double-click toggles reading
+    // Mouse interactions: clicking front/back triggers flip behavior
     installClickHandlers();
 
      // 键盘
@@ -258,31 +262,37 @@ public class StealthStage extends Stage {
              case DIGIT2: rateAndHide(com.memorizer.model.Rating.HARD); break;
              case DIGIT3: rateAndHide(com.memorizer.model.Rating.GOOD); break;
              case DIGIT4: rateAndHide(com.memorizer.model.Rating.EASY); break;
+             case F8:
+                 if (isShowing()) hide(); else showAndFocus();
+                 break;
              case ESCAPE: hideWithSnooze(); break;
             case S: skipCurrent(); break;
             case M: toggleMode(); break; // 新增：切换 Normal/Mini
             case T: toggleTheme(); break; // 切换 黑/白 主题
-            default: break;
-        }
-    });
+             default: break;
+         }
+     });
 
  }
 
  private void installClickHandlers() {
-     javafx.event.EventHandler<javafx.scene.input.MouseEvent> h = ev -> {
+     frontLabel.setOnMouseClicked(ev -> {
          if (ev.getClickCount() >= 2) {
-             // double-click: toggle reading visibility and show back face
-             readingShown = !readingShown;
-             showingFront = false;
+             // ensure reading/pos appear (equivalent to two flips)
+             if (flipPressCount < 2) flipPressCount = 2;
              updateFaceVisibility();
          } else {
-             // single click: flip front/back
-             showingFront = !showingFront;
-             updateFaceVisibility();
+             flipPressed();
          }
-     };
-     frontLabel.setOnMouseClicked(h);
-     backLabel.setOnMouseClicked(h);
+     });
+     backLabel.setOnMouseClicked(ev -> {
+         if (ev.getClickCount() >= 2) {
+             if (flipPressCount < 2) flipPressCount = 2;
+             updateFaceVisibility();
+         } else {
+             flipPressed();
+         }
+     });
  }
 
  // === 模式切换 ===
@@ -325,16 +335,14 @@ public class StealthStage extends Stage {
  private void applyTheme(ThemeMode theme) { /* legacy no-op */ }
 
  private void applyDrawerTheme(boolean dark) {
-     java.util.List<String> ss = getScene().getStylesheets();
-     ss.clear();
      String sel = dark ? "/css/drawer-dark.css" : "/css/drawer-light.css";
      try {
          java.net.URL u = StealthStage.class.getResource(sel);
-         if (u != null) ss.add(u.toExternalForm());
+         if (u != null) getScene().getStylesheets().setAll(u.toExternalForm());
      } catch (Exception ignored) {}
-    root.getStyleClass().removeAll("taskbar-dark","taskbar-light");
-    root.getStyleClass().add(dark?"taskbar-dark":"taskbar-light");
-}
+     root.getStyleClass().removeAll("taskbar-dark","taskbar-light");
+     root.getStyleClass().add(dark?"taskbar-dark":"taskbar-light");
+ }
 
  private void applyMode(UIMode mode) {
      boolean mini = (mode == UIMode.MINI);
@@ -348,24 +356,33 @@ public class StealthStage extends Stage {
          limitLabelLines(backLabel, mini ? 1 : 2);
          backLabel.setVisible(true); backLabel.setManaged(true);
      }
-     if (readingPosLabel != null) {
-         readingPosLabel.setVisible(true); readingPosLabel.setManaged(true);
-     }
-    if (examplesScroll != null && examplesMini != null) {
-        examplesScroll.setVisible(!mini); examplesScroll.setManaged(!mini);
-        examplesMini.setVisible(mini);    examplesMini.setManaged(mini);
+    if (readingPosLabel != null) {
+        int state = flipPressCount % 3;
+        boolean showRP = (state == 2);
+        readingPosLabel.setVisible(showRP); readingPosLabel.setManaged(showRP);
     }
+    if (examplesScroll != null && examplesMini != null) {
+        int state = flipPressCount % 3;
+        boolean showRP = (state == 2);
+        examplesScroll.setVisible(showRP && !mini); examplesScroll.setManaged(showRP && !mini);
+        examplesMini.setVisible(showRP && mini);    examplesMini.setManaged(showRP && mini);
+    }
+    // Edit/Add: show ADD only in normal (mini uses context menu)
+    if (btnAdd != null) { btnAdd.setVisible(!mini); btnAdd.setManaged(!mini); }
     if (mini) startMiniExamplesMarquee(); else stopMiniExamplesMarquee();
     // right clusters (answers)
     if (answersMini != null) { answersMini.setVisible(mini); answersMini.setManaged(mini); }
     if (answersNormal != null) { answersNormal.setVisible(!mini); answersNormal.setManaged(!mini); }
      // progress text: hide in Mini (bar only)
     if (progressBox != null) {
-        // In mini, bar only (hide all text nodes). In normal, show both.
-        for (int i = 1; i < progressBox.getChildren().size(); i++) {
-            Node n = progressBox.getChildren().get(i);
-            n.setVisible(!mini); n.setManaged(!mini);
+        if (progressBox.getChildren().size() >= 2) {
+            Node normalCol = progressBox.getChildren().get(0);
+            Node miniRow = progressBox.getChildren().get(1);
+            normalCol.setVisible(!mini); normalCol.setManaged(!mini);
+            miniRow.setVisible(mini);   miniRow.setManaged(mini);
         }
+        // Ensure progress bar is visible in both modes
+        todayProgress.setVisible(true); todayProgress.setManaged(true);
     }
      // separators
      if (allVerticalSeps != null) {
@@ -774,33 +791,27 @@ public class StealthStage extends Stage {
  
 
  private void flipPressed() {
-     // single press toggles front/back
-     showingFront = !showingFront;
-     flipPressCount++;
-     // every second press toggles pronunciation visibility
-     if ((flipPressCount % 2) == 0) {
-         readingShown = !readingShown;
-     }
+     // Cycle: 0 -> 1 -> 2 -> 0
+     flipPressCount = (flipPressCount + 1) % 3;
      updateFaceVisibility();
-    }
+ }
 
     private void updateFaceVisibility() {
-     if (showingFront) {
-        frontLabel.setVisible(true);
-        frontLabel.setManaged(true);
-        backLabel.setVisible(false);
-        backLabel.setManaged(false);
-        readingLabel.setVisible(false);
-        readingLabel.setManaged(false);
-     } else {
-        frontLabel.setVisible(false);
-        frontLabel.setManaged(false);
-        backLabel.setVisible(true);
-        backLabel.setManaged(true);
-        readingLabel.setVisible(readingShown);
-        readingLabel.setManaged(readingShown);
-     }
- }
+        int state = flipPressCount % 3; // 0: Front only, 1: Back only, 2: Front+Back+Reading/Pos(+Examples)
+        boolean showFront = (state == 0) || (state == 2);
+        boolean showBack  = (state == 1) || (state == 2);
+        boolean showRP    = (state == 2);
+
+        frontLabel.setVisible(showFront); frontLabel.setManaged(showFront);
+        backLabel.setVisible(showBack);   backLabel.setManaged(showBack);
+        readingLabel.setVisible(showRP);  readingLabel.setManaged(showRP);
+        if (readingPosLabel != null) { readingPosLabel.setVisible(showRP); readingPosLabel.setManaged(showRP); }
+
+        // Examples visibility by state + mode; width listener may further hide under tight width
+        boolean mini = (currentMode == UIMode.MINI);
+        if (examplesScroll != null) { boolean vis = showRP && !mini; examplesScroll.setVisible(vis); examplesScroll.setManaged(vis); }
+        if (examplesMini != null)   { boolean vis = showRP && mini;  examplesMini.setVisible(vis);   examplesMini.setManaged(vis); }
+    }
 
  private javafx.scene.control.Separator vSep() {
      javafx.scene.control.Separator sp = new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL);
@@ -854,10 +865,13 @@ public class StealthStage extends Stage {
         ColumnConstraints c7 = new ColumnConstraints(); c7.setMinWidth(180); c7.setPrefWidth(200); cols.add(c7);
         drawerRoot.getColumnConstraints().addAll(cols);
 
-        // C0: Edit button
-        btnEdit.getStyleClass().add("cell-edit");
-        GridPane.setValignment(btnEdit, VPos.CENTER);
-        drawerRoot.add(btnEdit, 0, 0);
+        // C0: Edit/Add buttons container
+        VBox leftButtons = new VBox(8);
+        leftButtons.getStyleClass().add("cell-edit");
+        leftButtons.setAlignment(Pos.CENTER);
+        leftButtons.getChildren().addAll(btnEdit, btnAdd);
+        GridPane.setValignment(leftButtons, VPos.CENTER);
+        drawerRoot.add(leftButtons, 0, 0);
 
         // separators storage helper
         java.util.function.Function<Integer, Separator> sepAt = idx -> {
@@ -882,7 +896,7 @@ public class StealthStage extends Stage {
         drawerRoot.add(frontLabel, 2, 0);
 
         // C2: Reading/Pos (small, ellipsis)
-        readingPosLabel.getStyleClass().add("cell-reading");
+        readingPosLabel.getStyleClass().addAll("cell-reading","muted");
         readingPosLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         GridPane.setValignment(readingPosLabel, VPos.CENTER);
         drawerRoot.add(readingPosLabel, 4, 0);
@@ -899,6 +913,9 @@ public class StealthStage extends Stage {
         examplesCell.setFillWidth(true);
         // Normal flow (reuse examplesBox/examplesScroll)
         examplesScroll.setFitToWidth(true);
+        examplesScroll.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+        examplesScroll.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        examplesScroll.setContent(examplesBox);
         examplesCell.getChildren().add(examplesScroll);
         // Mini single-line label inside clipped wrapper (for marquee)
         examplesMini.setTextOverrun(OverrunStyle.ELLIPSIS);
@@ -950,8 +967,28 @@ public class StealthStage extends Stage {
         // C7: Progress (Normal: bar over text; Mini: bar only)
         progressBox = new VBox(4);
         progressBox.getStyleClass().add("cell-progress");
-        progressBox.getChildren().addAll(todayProgress, todayLabel, batchInfo);
+        // Normal: ProgressBar with text overlay (Today + (n/m)) on top, aligned right
+        HBox progressTextInline = new HBox(6, todayLabel, batchInfo);
+        progressTextInline.setAlignment(Pos.CENTER_RIGHT);
+        progressTextInline.setMouseTransparent(true);
+        StackPane progressStack = new StackPane(todayProgress, progressTextInline);
+        StackPane.setAlignment(progressTextInline, Pos.CENTER_RIGHT);
+        StackPane.setMargin(progressTextInline, new Insets(0,8,0,0));
+        VBox progressNormal = new VBox(progressStack);
+        progressNormal.setAlignment(Pos.CENTER_RIGHT);
+        // Mini: badge left of bar, right-aligned
+        Label batchMini = new Label(); batchMini.getStyleClass().addAll("batch-info","muted"); batchMini.textProperty().bind(batchInfo.textProperty());
+        todayProgressMini = new ProgressBar(); todayProgressMini.getStyleClass().add("today-progress");
+        todayProgressMini.progressProperty().bind(todayProgress.progressProperty());
+        todayProgressMini.setPrefWidth(todayProgress.getPrefWidth());
+        todayProgressMini.setMinWidth(todayProgress.getMinWidth());
+        todayProgressMini.setMaxWidth(todayProgress.getMaxWidth());
+        todayProgressMini.getStyleClass().add("progress-large");
+        HBox progressMini = new HBox(6, batchMini, todayProgressMini);
+        progressMini.setAlignment(Pos.CENTER_RIGHT);
+        progressBox.getChildren().addAll(progressNormal, progressMini);
         progressBox.setAlignment(Pos.CENTER_RIGHT);
+        progressBox.setPadding(new Insets(0,8,0,0));
         GridPane.setValignment(progressBox, VPos.CENTER);
         drawerRoot.add(progressBox, 14, 0);
         todayProgress.getStyleClass().add("progress-large");
@@ -1018,4 +1055,104 @@ private void toggleFace() {
      hide();
  }
 
+ // === Lightweight Edit/Add Popup ===
+ private void openEditPopup() {
+     long cardId = this.currentCardId;
+     if (cardId <= 0) return;
+     java.util.Optional<com.memorizer.model.Note> on = new com.memorizer.db.NoteRepository().findByCardId(cardId);
+     if (!on.isPresent()) return;
+     showNotePopup(on.get(), /*isAdd*/ false);
+ }
+
+ private void openAddPopup() { showNotePopup(new com.memorizer.model.Note(), /*isAdd*/ true); }
+
+ private void showNotePopup(com.memorizer.model.Note note, boolean isAdd) {
+     Stage pop = new Stage(StageStyle.TRANSPARENT);
+     pop.setAlwaysOnTop(true);
+     pop.initOwner(this);
+     // DPI scale
+     double scale = 1.0; try { int dpi = java.awt.Toolkit.getDefaultToolkit().getScreenResolution(); scale = Math.max(1.0, dpi/96.0); } catch (Throwable ignored) {}
+     double w = 480 * scale, h = 380 * scale;
+     // UI
+     BorderPane bp = new BorderPane();
+     bp.getStyleClass().add(root.getStyleClass().contains("taskbar-dark")?"taskbar-dark":"taskbar-light");
+     bp.getStyleClass().add("popup");
+     bp.setPadding(new Insets(12));
+     javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(); clip.setArcWidth(12); clip.setArcHeight(12); bp.setClip(clip);
+     bp.layoutBoundsProperty().addListener((o,ov,nv)->{ if (nv!=null) { clip.setWidth(nv.getWidth()); clip.setHeight(nv.getHeight()); }});
+     bp.setEffect(new javafx.scene.effect.DropShadow(16, javafx.scene.paint.Color.rgb(0,0,0,0.35)));
+
+     // Fields
+     javafx.scene.control.TextField fFront = new javafx.scene.control.TextField(note.front == null?"":note.front);
+     javafx.scene.control.TextField fReading = new javafx.scene.control.TextField(note.reading == null?"":note.reading);
+     javafx.scene.control.TextField fPos = new javafx.scene.control.TextField(note.pos == null?"":note.pos);
+     javafx.scene.control.TextArea fBack = new javafx.scene.control.TextArea(note.back == null?"":note.back);
+     javafx.scene.control.TextArea fExamples = new javafx.scene.control.TextArea(note.examples == null?"":note.examples);
+     fBack.setPrefRowCount(3); fExamples.setPrefRowCount(4);
+     javafx.scene.control.Label t1 = new javafx.scene.control.Label("Front");
+     javafx.scene.control.Label t2 = new javafx.scene.control.Label("Reading / Pos");
+     javafx.scene.control.Label t3 = new javafx.scene.control.Label("Back");
+     javafx.scene.control.Label t4 = new javafx.scene.control.Label("Examples");
+
+     GridPane form = new GridPane(); form.setHgap(8); form.setVgap(8);
+     int r=0; form.add(t1,0,r); form.add(fFront,1,r++);
+     form.add(t2,0,r); HBox rp = new HBox(8, fReading, fPos); HBox.setHgrow(fReading, Priority.ALWAYS); HBox.setHgrow(fPos, Priority.SOMETIMES); form.add(rp,1,r++);
+     form.add(t3,0,r); form.add(fBack,1,r++);
+     form.add(t4,0,r); form.add(fExamples,1,r++);
+     ColumnConstraints cc0 = new ColumnConstraints(); cc0.setMinWidth(110); cc0.setPrefWidth(120);
+     ColumnConstraints cc1 = new ColumnConstraints(); cc1.setHgrow(Priority.ALWAYS);
+     form.getColumnConstraints().addAll(cc0, cc1);
+
+     HBox actions = new HBox(8);
+     Button bSave = new Button("Save"); bSave.getStyleClass().addAll("controls","btn-flip");
+     Button bCancel = new Button("Cancel"); bCancel.getStyleClass().addAll("controls","btn-flip");
+     actions.getChildren().addAll(spacer(), bCancel, bSave); actions.setAlignment(Pos.CENTER_RIGHT);
+
+     VBox content = new VBox(12, form, actions);
+     bp.setCenter(content);
+     Scene sc = new Scene(bp, w, h);
+     sc.setFill(javafx.scene.paint.Color.TRANSPARENT);
+     sc.getStylesheets().setAll(getScene().getStylesheets());
+     pop.setScene(sc);
+
+     // Position above drawer, centered horizontally
+     double px = getX() + (getWidth() - w)/2.0; if (px < 0) px = getX();
+     double py = Math.max(getY() - h - 12, 20);
+     pop.setX(px); pop.setY(py);
+
+     // Handlers
+     Runnable doSave = () -> {
+         try {
+             com.memorizer.db.NoteRepository nr = new com.memorizer.db.NoteRepository();
+             if (isAdd) {
+                 com.memorizer.model.Note n = new com.memorizer.model.Note();
+                 n.front = fFront.getText(); n.back = fBack.getText(); n.reading = fReading.getText(); n.pos = fPos.getText(); n.examples = fExamples.getText();
+                 long nid = nr.insert(n);
+                 new com.memorizer.db.CardRepository().insertForNote(nid);
+             } else {
+                 com.memorizer.model.Note n = note;
+                 n.front = fFront.getText(); n.back = fBack.getText(); n.reading = fReading.getText(); n.pos = fPos.getText(); n.examples = fExamples.getText();
+                 nr.update(n);
+                 // refresh view if editing current
+                 if (currentCardId > 0 && study != null) {
+                     java.util.Optional<com.memorizer.service.StudyService.CardView> ov = study.viewCardById(currentCardId);
+                     ov.ifPresent(this::showCardView);
+                 }
+             }
+         } catch (Exception ignored) {}
+         pop.close();
+         try { if (getScene()!=null && getScene().getRoot()!=null) getScene().getRoot().requestFocus(); } catch (Exception ignored) {}
+     };
+     bSave.setOnAction(e -> doSave.run());
+     bCancel.setOnAction(e -> { pop.close(); try { getScene().getRoot().requestFocus(); } catch (Exception ignored) {} });
+     sc.setOnKeyPressed(ev -> {
+         switch (ev.getCode()) {
+             case ESCAPE: pop.close(); try { getScene().getRoot().requestFocus(); } catch (Exception ignored) {} break;
+             case S: if (ev.isControlDown()) { doSave.run(); } break;
+             default: break;
+         }
+     });
+     pop.show();
+     fFront.requestFocus(); fFront.selectAll();
+ }
 }

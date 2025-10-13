@@ -85,7 +85,11 @@ public class MainStage extends Stage {
 
         BorderPane root = new BorderPane();
         root.setTop(buildMenuBar());
-        root.setCenter(buildTabs());
+        // Wrap center in a scroll container to avoid clipping and keep content aligned to top
+        javafx.scene.control.ScrollPane centerScroll = new javafx.scene.control.ScrollPane(buildTabs());
+        centerScroll.setFitToWidth(true); centerScroll.setFitToHeight(false);
+        centerScroll.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+        root.setCenter(centerScroll);
         root.setBottom(buildStatusBar());
 
         Scene scene = new Scene(root);
@@ -615,6 +619,13 @@ public class MainStage extends Stage {
 
     // ---- public helpers ----
     public void showAndFocus() {
+        // Fit to OS work area so bottom edge is flush with taskbar
+        javafx.geometry.Rectangle2D vb = javafx.stage.Screen.getPrimary().getVisualBounds();
+        setX(Math.floor(vb.getMinX()));
+        setY(Math.floor(vb.getMinY()));
+        // add a tiny fudge on height to avoid a 1px gap due to DPI rounding
+        setWidth(Math.ceil(vb.getWidth()));
+        setHeight(Math.ceil(vb.getHeight() + 1));
         if (!isShowing()) show();
         toFront(); requestFocus(); setIconified(false);
         refreshStats();

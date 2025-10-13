@@ -1,11 +1,17 @@
-#taskbarDrawer, .taskbar-dark {
+.taskbar-dark {
   -fx-background-radius: 12;
   -fx-background-insets: 0;
-  -fx-padding: 8 12 10 12; /* Normal */
-  -fx-background-color: linear-gradient(to bottom, #26282C, #1E1F22);
+  -fx-padding: 11 12 7 12; /* Normal - slight shift down */
+  -fx-fg: #E7EAF0;            /* primary */
+  -fx-fg-muted: #A5AABA;      /* secondary */
+  -fx-fg-disabled: #8891A5;   /* disabled */
+  -fx-icon: #E7EAF0;          /* icons */
+  -fx-surface: linear-gradient(to bottom, #26282C, #1E1F22);
+  -fx-chip: #2B2F36;          /* button base */
+  -fx-background-color: -fx-surface;
 }
-.taskbar-mini#taskbarDrawer, .taskbar-dark.taskbar-mini {
-  -fx-padding: 6 10 8 10; /* Mini */
+.taskbar-dark.taskbar-mini {
+  -fx-padding: 8 10 6 10; /* Mini - slight shift down */
 }
 
 .root {
@@ -18,7 +24,7 @@
   -fx-background-radius: 6;
   -fx-font-size: 13px; -fx-font-weight: 600;
   -fx-padding: 0 12;
-  -fx-text-fill: #E7EAF0; /* fixed text color */
+  -fx-text-fill: #F2F5FA; /* fixed text color for dark */
 }
 .controls .button:focused {
   -fx-effect: dropshadow(gaussian, rgba(76,141,246,0.40), 6, 0.6, 0, 0);
@@ -38,12 +44,18 @@
 
 /* Cells */
 .cell-edit { }
-.cell-front, .cell-back {
+.cell-front {
   -fx-font-size: 20px;
   -fx-font-weight: 700;
-  -fx-text-fill: -fx-text-base;
+  -fx-text-fill: -fx-fg;
 }
-.cell-reading .label, .cell-reading { -fx-font-size: 12.5px; -fx-text-fill: -fx-text-base-secondary; }
+.cell-back {
+  -fx-font-size: 18px;
+  -fx-font-weight: 700;
+  -fx-text-fill: -fx-fg;
+}
+.cell-reading .label, .cell-reading { -fx-font-size: 12.5px; }
+.muted { -fx-text-fill: -fx-fg-muted; }
 .cell-examples { -fx-padding: 0 8 0 8; }
 .taskbar-dark .cell-examples,
 .taskbar-dark .scroll-pane, .taskbar-dark .scroll-pane > .viewport {
@@ -61,7 +73,8 @@
 
 /* Mini overrides */
 .taskbar-mini .cell-front, .taskbar-mini .cell-back { -fx-font-size: 17px; }
-.taskbar-mini .cell-progress .label { -fx-font-size: 0; }
+.taskbar-mini .today { -fx-font-size: 0; }
+.taskbar-mini .batch-info { -fx-font-size: 11px; }
 
 /* Progress */
 .cell-progress .progress-bar.progress-large { -fx-pref-height: 34; }
@@ -73,24 +86,25 @@
   -fx-border-color: rgba(0,0,0,0.45), rgba(255,255,255,0.06);
   -fx-border-insets: 0, 1;
   -fx-border-width: 1, 1;
+  -fx-text-fill: -fx-fg;
 }
-.btn-again { -fx-background-color: rgba(239,83,80,0.28), #2B2F36; }
-.btn-hard  { -fx-background-color: rgba(245,165,36,0.28), #2B2F36; }
-.btn-good  { -fx-background-color: rgba(34,197,94,0.28), #2B2F36; }
-.btn-easy  { -fx-background-color: rgba(139,92,246,0.28), #2B2F36; }
-.btn-answer:hover { -fx-background-color: rgba(255,255,255,0.08), -fx-background-color; -fx-effect: innershadow(gaussian, rgba(0,0,0,0.25), 4, 0.8, 0, 0); }
-.btn-again:hover { -fx-background-color: rgba(239,83,80,0.36), #2B2F36; }
-.btn-hard:hover  { -fx-background-color: rgba(245,165,36,0.36), #2B2F36; }
-.btn-good:hover  { -fx-background-color: rgba(34,197,94,0.36), #2B2F36; }
-.btn-easy:hover  { -fx-background-color: rgba(139,92,246,0.36), #2B2F36; }
+.btn-again { -fx-background-color: rgba(239,83,80,0.30), -fx-chip; }
+.btn-hard  { -fx-background-color: rgba(245,165,36,0.28), -fx-chip; }
+.btn-good  { -fx-background-color: rgba(34,197,94,0.28), -fx-chip; }
+.btn-easy  { -fx-background-color: rgba(139,92,246,0.28), -fx-chip; }
+.btn-answer:hover { -fx-effect: innershadow(gaussian, rgba(0,0,0,0.25), 4, 0.8, 0, 0); }
+.btn-again:hover { -fx-background-color: rgba(239,83,80,0.37), #2B2F36; }
+.btn-hard:hover  { -fx-background-color: rgba(245,165,36,0.35), #2B2F36; }
+.btn-good:hover  { -fx-background-color: rgba(34,197,94,0.35), #2B2F36; }
+.btn-easy:hover  { -fx-background-color: rgba(139,92,246,0.35), #2B2F36; }
 .btn-answer:armed { -fx-background-color: rgba(0,0,0,0.06), -fx-background-color; }
-.btn-again:armed { -fx-background-color: rgba(239,83,80,0.24), #2B2F36; }
+.btn-again:armed { -fx-background-color: rgba(239,83,80,0.26), #2B2F36; }
 .btn-hard:armed  { -fx-background-color: rgba(245,165,36,0.24), #2B2F36; }
 .btn-good:armed  { -fx-background-color: rgba(34,197,94,0.24), #2B2F36; }
 .btn-easy:armed  { -fx-background-color: rgba(139,92,246,0.24), #2B2F36; }
 
 /* Flip: neutral graphite */
-.btn-flip { -fx-background-color: #2B2F36; -fx-border-color: rgba(0,0,0,0.45), rgba(255,255,255,0.06); -fx-border-insets: 0,1; -fx-border-width:1,1; }
+.btn-flip { -fx-background-color: -fx-chip; -fx-border-color: rgba(0,0,0,0.45), rgba(255,255,255,0.06); -fx-border-insets: 0,1; -fx-border-width:1,1; }
 .btn-flip:hover { -fx-background-color: #323740; }
 .btn-flip:armed { -fx-background-color: #2a2e35; }
 
@@ -108,3 +122,56 @@
 .taskbar-dark .scroll-pane > .viewport { -fx-background-color: transparent; }
 .taskbar-dark .scroll-pane > .viewport > * { -fx-background-color: transparent; }
 .taskbar-dark .scroll-pane > .corner { -fx-background-color: transparent; }
+
+/* Popup: use a slightly lighter graphite than the drawer background */
+.taskbar-dark.popup {
+  -fx-background-color: #2B2F36;
+}
+
+/* Global force for text-bearing nodes — keep light FG */
+.taskbar-dark .label,
+.taskbar-dark .text,
+.taskbar-dark .button .text,
+.taskbar-dark .toggle-button .text,
+.taskbar-dark .menu-button .label,
+.taskbar-dark .radio-button, .taskbar-dark .check-box,
+.taskbar-dark .tooltip,
+.taskbar-dark .progress-indicator .percentage {
+  -fx-text-fill: -fx-fg;
+  -fx-fill: -fx-fg;
+}
+.taskbar-dark .button:disabled .text,
+.taskbar-dark .label:disabled { -fx-text-fill: -fx-fg-disabled; }
+.taskbar-dark .ikonli-font-icon, .taskbar-dark .svg-icon, .taskbar-dark .glyph { -fx-fill: -fx-icon; }
+.taskbar-dark .controls .button,
+.taskbar-dark .controls .button:hover,
+.taskbar-dark .controls .button:armed,
+.taskbar-dark .controls .button:focused { -fx-text-fill: -fx-fg; }
+
+/* Make inner surfaces transparent to avoid leaks (keep root background opaque) */
+.taskbar-dark .center-box,
+.taskbar-dark .left-panel,
+.taskbar-dark .right-panel,
+.taskbar-dark .cell-front,
+.taskbar-dark .cell-reading,
+.taskbar-dark .cell-back,
+.taskbar-dark .cell-examples { -fx-background-color: transparent; }
+.taskbar-dark .text-input, .taskbar-dark .text-area, .taskbar-dark .text-area .content {
+  -fx-background-color: transparent; -fx-control-inner-background: transparent;
+}
+.taskbar-dark.popup .text-input,
+.taskbar-dark.popup .text-area,
+.taskbar-dark.popup .text-area .content {
+  -fx-background-color: #2F333A;
+  -fx-control-inner-background: #2F333A;
+  -fx-background-insets: 0;
+  -fx-background-radius: 6;
+  -fx-text-fill: -fx-fg;
+  -fx-border-color: rgba(255,255,255,0.08);
+  -fx-border-insets: 0;
+  -fx-border-radius: 6;
+}
+.taskbar-dark.popup .text-input:focused,
+.taskbar-dark.popup .text-area:focused {
+  -fx-border-color: rgba(76,141,246,0.55);
+}
