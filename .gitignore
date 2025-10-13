@@ -22,6 +22,8 @@ tmp/
 *.sqlite
 *.db
 
+data/
+
 # Java 编译文件
 *.class
 

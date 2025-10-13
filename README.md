@@ -53,3 +53,28 @@ Key settings are documented inline. Highlights:
 
 - Style: Java 8, SLF4J logging, 4‑space indentation
 - Tests: JUnit 5 patterns can be added under src/test/java
+-
+## Goals & Roadmap
+
+### Goals
+- Deliver a fast, low-friction Stealth review banner with reliable positioning.
+- Provide a simple Main window for overview and manual data entry (decks, notes).
+- Keep Desktop and PWA aligned via shared DB, including an optional deck filter.
+
+### Completed
+- Stealth UI (Normal/Mini), Dark/Light themes, strict heights, progress overlay.
+- Dark rating buttons with filled tints; Light pastel styles; proper alignment.
+- Flip-cycle logic: Front → Back → Front+Back+Reading/Pos+Examples → Front.
+- Examples in Normal (multiline scroller) and Mini (single-line; marquee).
+- Dark popups (Edit/Add) with visible input fields and focus styling.
+- Main/Study windows: top alignment, vertical scrolling, size to OS work area.
+- Deck filter (View → Deck) with PlanService filtering; manual New Deck/New Entry.
+- User Manual in Help menu; status-bar notices on create/save.
+
+### Pending / Next
+- Multi-monitor/taskbar-edge placement; taskbar on top/left/right.
+- Manage Decks window (list/rename/delete); optional Stealth deck badge and hotkey.
+- Tray balloons for create/save success; keep in-window notice.
+- Maven repo config to Central by default; add CI.
+- Add tests (PlanService deck filter, Stealth flip states, repository paths).
+- Persist per-deck challenge last-size hint.
