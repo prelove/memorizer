@@ -713,17 +713,17 @@ public class StealthStage extends Stage {
          double scale = 1.0;
          try { int dpi = java.awt.Toolkit.getDefaultToolkit().getScreenResolution(); scale = Math.max(1.0, dpi / 96.0); } catch (Throwable ignored) {}
          double h = 44 * scale; // strict mini height
-         int pad = 8;
+         int pad = 0;
          double frac = Double.parseDouble(com.memorizer.app.Config.get("app.window.mini.width-fraction","0.5"));
          double w = Math.max(320, screenW * frac);
          setWidth(w); setHeight(h);
          setX(screenX + (screenW - w)/2.0);
-         setY(screenY + screenH - h - Math.max(2, pad));
+         setY(screenY + screenH - h - pad);
      } else {
          double scale = 1.0;
          try { int dpi = java.awt.Toolkit.getDefaultToolkit().getScreenResolution(); scale = Math.max(1.0, dpi / 96.0); } catch (Throwable ignored) {}
          double h = 76 * scale; // strict normal 2-row height
-         int pad = 8;
+         int pad = 0;
          double frac = Double.parseDouble(com.memorizer.app.Config.get("app.window.stealth.width-fraction","0.98"));
          double w = Math.max(480, screenW * frac);
 
@@ -734,7 +734,7 @@ public class StealthStage extends Stage {
          } else {
              setWidth(w); setHeight(h);
              setX(screenX + (screenW - w)/2.0);
-             setY(screenY + screenH - h - Math.max(2, pad));
+             setY(screenY + screenH - h - pad);
          }
      }
  }
@@ -936,7 +936,7 @@ public class StealthStage extends Stage {
         drawerRoot.add(btnFlip, 10, 0);
 
         // C6: Answers (Normal: 2x2 grid; Mini: 1 row HBox)
-        answersNormal = new GridPane(); answersNormal.setHgap(8); answersNormal.setVgap(8);
+        answersNormal = new GridPane(); answersNormal.setHgap(8); answersNormal.setVgap(6);
         answersNormal.getStyleClass().add("cell-answers");
         // equal column widths for 2x2 grid
         ColumnConstraints a0 = new ColumnConstraints(); a0.setPercentWidth(50); a0.setHgrow(Priority.ALWAYS);

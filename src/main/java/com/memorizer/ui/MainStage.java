@@ -104,6 +104,15 @@ public class MainStage extends Stage {
         });
         setScene(scene);
 
+        // Ensure we size to the OS work area the moment this window is shown
+        setOnShown(e -> {
+            javafx.geometry.Rectangle2D vb = javafx.stage.Screen.getPrimary().getVisualBounds();
+            setX(Math.floor(vb.getMinX()));
+            setY(Math.floor(vb.getMinY()));
+            setWidth(Math.ceil(vb.getWidth()));
+            setHeight(Math.ceil(vb.getHeight() + 1));
+        });
+
         setOnCloseRequest(e -> hide());
         refreshStats();
         loadNextForStudy();

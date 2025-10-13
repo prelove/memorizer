@@ -91,6 +91,15 @@ public class StudyStage extends Stage {
         });
         setScene(scene);
 
+        // Size to OS work area when showing so bottom edge is flush with taskbar
+        setOnShown(e -> {
+            javafx.geometry.Rectangle2D vb = Screen.getPrimary().getVisualBounds();
+            setX(Math.floor(vb.getMinX()));
+            setY(Math.floor(vb.getMinY()));
+            setWidth(Math.ceil(vb.getWidth()));
+            setHeight(Math.ceil(vb.getHeight() + 1));
+        });
+
         // Stage will be sized to work area in showAndFocus()
 
         loadNext();
