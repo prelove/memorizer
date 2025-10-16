@@ -3,6 +3,7 @@ package com.memorizer.util;
 import java.awt.Desktop;
 import java.net.URI;
 
+/** Small helper to open URLs in the default desktop browser (best-effort). */
 public final class Browse {
     public static boolean open(String url) {
         try {

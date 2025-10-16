@@ -11,6 +11,10 @@ import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Menu item actions triggered from the system tray.
+ * Bridges tray UI to study/session behavior, import/export helpers, and dev tools.
+ */
 public final class TrayActions {
     private static final ExcelImportService importer = new ExcelImportService();
     private static final ExcelTemplateService templater = new ExcelTemplateService();
@@ -22,6 +26,7 @@ public final class TrayActions {
         trayIconRef = icon;
     }
 
+    /** Show the stealth window immediately with the current/next card if available. */
     public static void showStealthNow(StudyService study) {
         StealthStage stage = com.memorizer.app.AppContext.getStealth();
         if (stage.isSessionActive()) {
@@ -42,6 +47,7 @@ public final class TrayActions {
         }
     }
     
+    /** Open the local H2 web console in a browser (starts it if disabled). */
     public static void openH2Console() {
         com.memorizer.app.H2ConsoleServer.startIfEnabled();
         String url = "http://127.0.0.1:" + com.memorizer.app.Config.get("app.h2.console.port", "8082") + "/";
@@ -51,6 +57,7 @@ public final class TrayActions {
         }
     }
 
+    /** Prompt for an Excel file and import rows on a background thread. */
     public static void openImportDialog() {
         FileDialog fd = new FileDialog((Frame) null, "Import Excel (.xlsx/.xls)", FileDialog.LOAD);
         fd.setFile("*.xlsx;*.xls");
@@ -66,6 +73,7 @@ public final class TrayActions {
         });
     }
 
+    /** Prompt for a destination and write an Excel import template. */
     public static void saveTemplateDialog() {
         FileDialog fd = new FileDialog((Frame) null, "Save Import Template (.xlsx)", FileDialog.SAVE);
         fd.setFile("import_template.xlsx");

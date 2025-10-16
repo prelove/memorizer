@@ -2,6 +2,7 @@ package com.memorizer.util;
 
 import java.awt.*;
 
+/** Utilities for querying screen/taskbar geometry to position windows. */
 public final class ScreenUtil {
     public static class Rect { public int x,y,w,h; public Rect(int x,int y,int w,int h){this.x=x;this.y=y;this.w=w;this.h=h;} }
 

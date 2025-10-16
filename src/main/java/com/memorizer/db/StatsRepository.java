@@ -16,6 +16,7 @@ public class StatsRepository {
         public int todayReviews;
     }
 
+    /** Load aggregated stats for overview panels (due/new/totals/today reviews). */
     public Stats load() {
         Stats s = new Stats();
         Timestamp now = new Timestamp(System.currentTimeMillis());

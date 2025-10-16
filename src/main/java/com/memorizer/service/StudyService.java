@@ -10,7 +10,10 @@ import com.memorizer.srs.SrsEngine;
 import java.sql.Timestamp;
 import java.util.Optional;
 
-/** Orchestrates which card to show and applies SRS scheduling on rating. */
+/**
+ * Orchestrates study flow: selects which card to show, assembles view data,
+ * and applies SRS scheduling when the user submits a rating.
+ */
 public class StudyService {
     private final CardRepository cardRepo = new CardRepository();
     private final NoteRepository noteRepo = new NoteRepository();
@@ -46,15 +49,19 @@ public class StudyService {
         // 可选：builder 或全参构造器
     }
 
+    /** Bind a daily plan provider to prioritize planned cards. */
     public void bindPlan(com.memorizer.service.PlanService p) { this.plan = p; }
+    /** Request a rebuild of today's study plan. */
     public void rebuildTodayPlan() {
         if (plan != null) plan.buildToday();
     }
 
+    /** Append a challenge batch to today's plan. */
     public void appendChallengeBatch(int size) {
         if (plan != null) plan.appendChallengeBatch(size);
     }
 
+    /** Return summary counts for today's plan; empty defaults on error. */
     public com.memorizer.service.PlanService.Counts planCounts() {
         try {
             return plan != null ? plan.todayCounts() : new com.memorizer.service.PlanService.Counts();
@@ -63,6 +70,7 @@ public class StudyService {
         }
     }
 
+    /** List today's plan rows for UI presentation. */
     public java.util.List<com.memorizer.service.PlanService.PlanRow> planListToday() {
         try { return plan != null ? plan.listToday() : java.util.Collections.emptyList(); }
         catch (Exception e) { return java.util.Collections.emptyList(); }
@@ -80,15 +88,18 @@ public class StudyService {
         showStartedAtMs = 0;
     }
 
+    /** Mark remaining pending items today as rolled. */
     public void rollRemainingToday() {
         try { if (plan != null) plan.rollRemainingToday(); } catch (Exception ignored) {}
     }
 
+    /** Remove all challenge entries from today's plan. */
     public void clearChallengeToday() {
         try { if (plan != null) plan.clearChallengeToday(); } catch (Exception ignored) {}
     }
 
     /** Preview the next planned card summary: Deck • Front. */
+    /** Preview "Deck • Front" of the next planned card, if any. */
     public java.util.Optional<String> previewNextFromPlanFront() {
         try {
             if (plan == null) return java.util.Optional.empty();
@@ -144,6 +155,7 @@ public class StudyService {
     }
 
     /** Public: build a CardView for a specific card id and set as current. */
+    /** Build a CardView for a specific card id and set as current. */
     public Optional<CardView> viewCardById(long cardId) {
         try {
             Card c = loadById(cardId);
@@ -159,6 +171,7 @@ public class StudyService {
     }
 
     /** Build rich CardView by joining Note (+optional Deck) and splitting examples/tags. */
+    /** Build a rich CardView by joining Note/Deck and splitting text fields. */
     private CardView assembleView(Card card, com.memorizer.model.Note note) {
         CardView v = new CardView();
         v.cardId = card.id;
@@ -254,6 +267,7 @@ public class StudyService {
 
 
     /** Fetch next due or new card; return empty if none. */
+    /** Fetch the next due or new card and assemble its view. */
     public Optional<CardView> nextCard() {
         Optional<Card> oc = cardRepo.findNextDueOrNew();
         if (!oc.isPresent()) return Optional.empty();
@@ -268,6 +282,10 @@ public class StudyService {
     }
 
     /** Apply rating to current card and write logs. */
+    /**
+     * Apply a user rating to the current card: compute next interval/ease,
+     * persist schedule and review log, and advance the plan.
+     */
     public void rate(Rating rating) {
         if (showingCardId <= 0) return;
 

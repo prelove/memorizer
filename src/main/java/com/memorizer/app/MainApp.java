@@ -14,6 +14,10 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 
+/**
+ * JavaFX application entrypoint.
+ * Wires database/migrations, console, tray, scheduler, and stages.
+ */
 public class MainApp extends Application {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
     private StealthStage stealthStage;

@@ -2,9 +2,10 @@ package com.memorizer.db;
 
 import java.sql.*;
 
-/** Deck table helper. */
+/** Deck table helper providing simple lookup/insert/list operations. */
 public class DeckRepository {
 
+    /** Find deck id by exact name; returns null if not found. */
     public Long findIdByName(String name) {
         try (PreparedStatement ps = Database.get()
                 .prepareStatement("SELECT id FROM deck WHERE name=?")) {
@@ -17,6 +18,7 @@ public class DeckRepository {
         }
     }
 
+    /** Insert a new deck and return its id. */
     public long insert(String name, String description) {
         try (PreparedStatement ps = Database.get()
                 .prepareStatement("INSERT INTO deck(name, description) VALUES (?,?)",
@@ -33,6 +35,7 @@ public class DeckRepository {
         }
     }
 
+    /** Get existing deck id by name or create it if absent. */
     public long getOrCreate(String name) {
         Long id = findIdByName(name);
         if (id != null) return id;

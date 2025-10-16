@@ -2,6 +2,11 @@ package com.memorizer.model;
 
 import java.sql.Timestamp;
 
+/**
+ * Flashcard scheduling entity.
+ * Tied to a {@code noteId} and tracked by due date, interval, ease, reps, lapses, and status.
+ * Status: 0=new, 1=learning, 2=review, 3=suspended.
+ */
 public class Card {
     public long id;
     public long noteId;

@@ -12,6 +12,11 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * System tray icon and menu wiring.
+ * Hosts quick actions for showing study cards, toggling modes, plan helpers,
+ * and developer utilities. Keeps lightweight live indicators of today's plan.
+ */
 public final class TrayManager {
 	private final TrayIcon trayIcon;
 	private final StealthStage stealthStage;
@@ -30,6 +35,7 @@ public final class TrayManager {
 	private final MenuItem miPause = new MenuItem("Pause Reminders");
 	private final MenuItem miResume = new MenuItem("Resume Reminders");
 
+	/** Create and attach the tray icon with menus and listeners. */
 	public TrayManager(StealthStage stealthStage, MainStage mainStage, StudyService study, Scheduler scheduler) {
 		this.stealthStage = stealthStage;
 		this.mainStage = mainStage;
@@ -289,6 +295,7 @@ public final class TrayManager {
 		}
 	}
 
+	/** Update tray tooltip with today's plan summary. */
 	public void updatePlanTooltip() {
 		try {
 			com.memorizer.service.PlanService.Counts pc = study.planCounts();
@@ -298,12 +305,14 @@ public final class TrayManager {
 		}
 	}
 
+	/** Enable/disable Pause/Resume based on current scheduler state. */
 	private void updatePauseMenu() {
 		boolean paused = scheduler.isPaused();
 		miPause.setEnabled(!paused);
 		miResume.setEnabled(paused);
 	}
 
+	/** Action for opening H2 Console (safely displays link). */
 	private ActionListener openH2() {
 		return e -> {
 			H2ConsoleServer.startIfEnabled();
@@ -313,6 +322,7 @@ public final class TrayManager {
 		};
 	}
 
+	/** Refresh live plan menu labels: total/pending and next front preview. */
 	private void updatePlanMenu(MenuItem miPlanSummary, MenuItem miPlanNext) {
 		try {
 			com.memorizer.service.PlanService.Counts pc = study.planCounts();

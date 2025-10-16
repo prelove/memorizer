@@ -9,7 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Daily plan builder and navigator. */
+/**
+ * Daily plan builder and navigator.
+ * Compiles today's sequence from due/leech/new/challenge pools and
+ * provides helpers to navigate and maintain plan state.
+ */
 public class PlanService {
 
     public enum Kind { DUE(0), LEECH(1), NEW(2), CHALLENGE(3); public final int v; Kind(int v){this.v=v;} }
@@ -31,6 +35,7 @@ public class PlanService {
         public String getFront() { return front; }
     }
 
+    /** Build or rebuild today's plan based on due/leech/new constraints. */
     public void buildToday() {
         LocalDate today = LocalDate.now();
         Timestamp now = new Timestamp(System.currentTimeMillis());
@@ -92,6 +97,7 @@ public class PlanService {
         }
     }
 
+    /** Append N new cards to today's plan as challenge items. */
     public void appendChallengeBatch(int size) {
         LocalDate today = LocalDate.now();
         List<Long> pick = findNewCards(size);
@@ -99,6 +105,7 @@ public class PlanService {
         for (Long id : pick) insert(today, id, null, Kind.CHALLENGE.v, seq++);
     }
 
+    /** Return the next pending card id from today's plan (honors deck filter). */
     public Optional<Long> nextFromPlan() {
         LocalDate today = LocalDate.now();
         String whereFilter = deckFilterWhereClause("p", "c", "n");
@@ -114,6 +121,7 @@ public class PlanService {
         } catch (SQLException e) { throw new RuntimeException("nextFromPlan failed", e); }
     }
 
+    /** Mark a planned card as done. */
     public void markDone(long cardId) {
         LocalDate today = LocalDate.now();
         try (PreparedStatement ps = Database.get().prepareStatement(
@@ -124,6 +132,7 @@ public class PlanService {
         } catch (SQLException e) { throw new RuntimeException("markDone failed", e); }
     }
 
+    /** Mark a planned card as skipped. */
     public void markSkipped(long cardId) {
         LocalDate today = LocalDate.now();
         try (PreparedStatement ps = Database.get().prepareStatement(

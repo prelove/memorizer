@@ -1,4 +1,4 @@
 #NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
-#Mon Oct 13 15:37:04 JST 2025
-14399ca34b73858bd6485939a9872a7cea402a07@default-nexus-releases-http\://localhost\:8081/repository/maven-public/.lastUpdated=1760337423974
+#Thu Oct 16 22:15:57 JST 2025
+14399ca34b73858bd6485939a9872a7cea402a07@default-nexus-releases-http\://localhost\:8081/repository/maven-public/.lastUpdated=1760620557265
 http\://localhost\:8081/repository/maven-public/.error=Could not transfer artifact org.apache.maven.plugins\:maven-resources-plugin\:pom\:3.3.1 from/to nexus-releases (http\://localhost\:8081/repository/maven-public/)\: Transfer failed for http\://localhost\:8081/repository/maven-public/org/apache/maven/plugins/maven-resources-plugin/3.3.1/maven-resources-plugin-3.3.1.pom

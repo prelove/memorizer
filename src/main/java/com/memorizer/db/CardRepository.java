@@ -10,8 +10,13 @@ import java.util.Optional;
 
 import com.memorizer.model.Card;
 
+/**
+ * Repository for CRUD and scheduling-related queries on the {@code card} table.
+ * Focuses on selecting next due/new cards and persisting schedule updates and review logs.
+ */
 public class CardRepository {
 
+    /** Find the next due card; if none, return the oldest new card. */
     public Optional<Card> findNextDueOrNew() {
         Timestamp now = new Timestamp(System.currentTimeMillis());
 
@@ -41,6 +46,7 @@ public class CardRepository {
         return Optional.empty();
     }
 
+    /** Persist schedule fields after SRS computation for a single card. */
     public void updateSchedule(Card c) {
         try (PreparedStatement ps = Database.get().prepareStatement(
                 "UPDATE card SET due_at=?, interval_days=?, ease=?, reps=?, lapses=?, status=?, last_review_at=? WHERE id=?")) {
@@ -58,6 +64,7 @@ public class CardRepository {
         }
     }
 
+    /** Append a review_log row capturing rating and interval transition for analytics/sync. */
     public void insertReview(long cardId, int rating, double prevInterval, double nextInterval, double ease, int latencyMs) {
         try (PreparedStatement ps = Database.get().prepareStatement(
                 "INSERT INTO review_log(card_id, rating, prev_interval, next_interval, ease, latency_ms) VALUES (?,?,?,?,?,?)")) {
@@ -74,6 +81,7 @@ public class CardRepository {
     }
 
     /** Create a fresh card for a note with default ease and status=new. */
+    /** Create a new card bound to a note with default ease and NEW status. */
     public long insertForNote(long noteId) {
         try (PreparedStatement ps = Database.get().prepareStatement(
                 "INSERT INTO card(note_id, ease, status) VALUES (?, 2.5, 0)", Statement.RETURN_GENERATED_KEYS)) {
@@ -89,6 +97,7 @@ public class CardRepository {
     }
     
     /** Fallback: return any available (non-suspended) card when no due/new exists. */
+    /** Fallback: find any non-suspended card. */
     public Optional<Card> findAnyAvailable() {
         try (PreparedStatement ps = Database.get().prepareStatement(
                 "SELECT id, note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at " +
@@ -102,6 +111,7 @@ public class CardRepository {
         return Optional.empty();
     }
     
+    /** Like {@link #findNextDueOrNew()} but excludes a specific card id (batch flow). */
     public Optional<Card> findNextDueOrNewExcluding(long excludeId) {
         java.sql.Timestamp now = new java.sql.Timestamp(System.currentTimeMillis());
         // due first
@@ -132,6 +142,7 @@ public class CardRepository {
         return Optional.empty();
     }
 
+    /** Fallback search excluding a specific card id (batch flow). */
     public Optional<Card> findAnyAvailableExcluding(long excludeId) {
         try (PreparedStatement ps = Database.get().prepareStatement(
                 "SELECT id, note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at " +
