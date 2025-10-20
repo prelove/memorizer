@@ -157,6 +157,22 @@ public class CardRepository {
         return Optional.empty();
     }
 
+    /** Find the earliest future due_at (including now); empty if no card has a due_at. */
+    public Optional<java.sql.Timestamp> findEarliestDueAt() {
+        try (PreparedStatement ps = Database.get().prepareStatement(
+                "SELECT MIN(due_at) FROM card WHERE due_at IS NOT NULL AND status <> 3")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    java.sql.Timestamp ts = rs.getTimestamp(1);
+                    return Optional.ofNullable(ts);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findEarliestDueAt failed", e);
+        }
+        return Optional.empty();
+    }
+
     
     private Card map(ResultSet rs) throws SQLException {
         Card c = new Card();

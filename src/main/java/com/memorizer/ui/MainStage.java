@@ -153,8 +153,19 @@ public class MainStage extends Stage {
         MenuItem miResume = new MenuItem("Resume Reminders");
         miResume.setOnAction(e -> scheduler.resume());
         MenuItem miSnooze = new MenuItem("Snooze 10 min");
+        // Scheduler Mode submenu
+        Menu mSchedMode = new Menu("Scheduler Mode");
+        ToggleGroup tgSched = new ToggleGroup();
+        RadioMenuItem miDue = new RadioMenuItem("Due-Driven (SRS)"); miDue.setToggleGroup(tgSched);
+        RadioMenuItem miPeriodic = new RadioMenuItem("Periodic"); miPeriodic.setToggleGroup(tgSched);
+        String sm = Config.get("app.study.scheduler.mode", "due");
+        boolean due = "due".equalsIgnoreCase(sm);
+        miDue.setSelected(due); miPeriodic.setSelected(!due);
+        miDue.setOnAction(e -> { if (miDue.isSelected()) { Config.set("app.study.scheduler.mode", "due"); scheduler.rescheduleNow(); refreshStats(); } });
+        miPeriodic.setOnAction(e -> { if (miPeriodic.isSelected()) { Config.set("app.study.scheduler.mode", "periodic"); scheduler.rescheduleNow(); refreshStats(); } });
+        mSchedMode.getItems().addAll(miDue, miPeriodic);
         miSnooze.setOnAction(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
-        mStudy.getItems().addAll(miOpenStudy, miShowNow, new SeparatorMenuItem(), miPause, miResume, miSnooze);
+        mStudy.getItems().addAll(miOpenStudy, miShowNow, new SeparatorMenuItem(), mSchedMode, new SeparatorMenuItem(), miPause, miResume, miSnooze);
 
         // View: Theme toggle (Dark/Light)
         Menu mView = new Menu("View");
@@ -190,6 +201,11 @@ public class MainStage extends Stage {
             mDeck.getItems().add(item);
         }
         mView.getItems().addAll(mTheme, new SeparatorMenuItem(), mDeck);
+        // Preferences dialog for runtime options
+        mView.getItems().add(new SeparatorMenuItem());
+        MenuItem miPrefs = new MenuItem("Preferences...");
+        miPrefs.setOnAction(e -> openPreferences());
+        mView.getItems().add(miPrefs);
 
         Menu mHelp = new Menu("Help");
         MenuItem miAbout = new MenuItem("About");
@@ -234,10 +250,10 @@ public class MainStage extends Stage {
         } catch (Exception ignored) {}
         return "Memorizer User Manual\n\n" +
                "- Stealth Banner: Normal/Mini modes (T to toggle theme, M to toggle mode).\n" +
-               "- Flip cycle: Front → Back → Front+Back+Reading/Pos+Examples → Front.\n" +
+               "- Flip cycle: Front 遶翫・Back 遶翫・Front+Back+Reading/Pos+Examples 遶翫・Front.\n" +
                "- Rating: Again/Hard/Good/Easy (1/2/3/4).\n" +
                "- Progress: Today target bar with overlay text.\n" +
-               "- Decks: View → Deck to filter; Data → New Deck/Entry to create.\n" +
+               "- Decks: View 遶翫・Deck to filter; Data 遶翫・New Deck/Entry to create.\n" +
                "- Shortcuts: SPACE/ENTER flip, F8 toggle banner, ESC hide.\n";
     }
 
@@ -825,7 +841,9 @@ public class MainStage extends Stage {
         lblTotalCards.setText(String.valueOf(s.totalCards));
         lblTotalNotes.setText(String.valueOf(s.totalNotes));
         lblTodayReviews.setText(String.valueOf(s.todayReviews));
-        lblScheduler.setText(scheduler.isPaused() ? "Paused" : "Running");
+        String mode = Config.get("app.study.scheduler.mode", "due");
+        String modeLabel = "due".equalsIgnoreCase(mode) ? "Due" : "Periodic";
+        lblScheduler.setText((scheduler.isPaused() ? "Paused" : "Running") + " (" + modeLabel + ")");
         com.memorizer.service.PlanService.Counts pc = study.planCounts();
         lblPlanPending.setText(String.valueOf(pc.pending));
         lblPlanDone.setText(String.valueOf(pc.done));
@@ -894,5 +912,12 @@ public class MainStage extends Stage {
         applyPlanPage(idx);
     }
 
+    private void openPreferences() {
+        StealthStage st = com.memorizer.app.AppContext.getStealth();
+        PreferencesStage dlg = new PreferencesStage(study, scheduler, st);
+        dlg.initOwner(this);
+        dlg.showAndWait();
+        // reflect status bar
+        refreshStats();
+    }
 }
-

@@ -1,5 +1,6 @@
 # 忽略 Maven 构建目录
 /target/
+target/
 
 .pnpm-store/
 dist/
@@ -17,6 +18,7 @@ coverage/
 # 忽略日志目录
 logs/
 *.log
+logs/app.log
 data/
 tmp/
 *.sqlite

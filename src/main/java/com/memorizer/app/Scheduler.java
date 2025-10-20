@@ -63,6 +63,15 @@ public class Scheduler {
     /** Whether the scheduler is currently paused. */
     public boolean isPaused() { return paused; }
 
+    /** Cancel current timer and trigger an immediate tick to adopt new settings. */
+    public synchronized void rescheduleNow() {
+        try {
+            if (future != null) future.cancel(true);
+        } catch (Exception ignored) {}
+        future = ses.schedule(this::tick, 0, TimeUnit.MILLISECONDS);
+        log.info("Scheduler rescheduled (now).");
+    }
+
     /** Snooze next tick by N minutes (from now). */
     /**
      * Snooze the next reminder by the given minutes from now.
@@ -149,6 +158,25 @@ public class Scheduler {
     }
 
     private long nextDelayMinutes() {
+        String mode = Config.get("app.study.scheduler.mode", "due");
+        boolean useDue = "due".equalsIgnoreCase(mode);
+
+        if (useDue) {
+            try {
+                // Due-driven scheduling: if there is a known next due_at, wake up then.
+                java.util.Optional<java.sql.Timestamp> nextDue = new com.memorizer.db.CardRepository().findEarliestDueAt();
+                if (nextDue.isPresent()) {
+                    long nowMs = System.currentTimeMillis();
+                    long dueMs = nextDue.get().getTime();
+                    long deltaMs = Math.max(0, dueMs - nowMs);
+                    long mins = Math.max(1, java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(deltaMs));
+                    return mins;
+                }
+            } catch (Exception ignored) {}
+            // fall through to periodic if no due exists yet
+        }
+
+        // Periodic random interval
         int min = Config.getInt("app.study.min-interval-minutes", 20);
         int max = Config.getInt("app.study.max-interval-minutes", 60);
         if (max < min) max = min;

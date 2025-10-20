@@ -44,17 +44,14 @@
 
 /* Cells */
 .cell-edit { }
-.cell-front {
-  -fx-font-size: 20px;
-  -fx-font-weight: 700;
+.cell-front,
+.cell-back,
+.cell-reading,
+.cell-reading .label {
+  -fx-font-size: 16px;
+  -fx-font-weight: 700; /* keep bold for clarity */
   -fx-text-fill: -fx-fg;
 }
-.cell-back {
-  -fx-font-size: 18px;
-  -fx-font-weight: 700;
-  -fx-text-fill: -fx-fg;
-}
-.cell-reading .label, .cell-reading { -fx-font-size: 12.5px; }
 .muted { -fx-text-fill: -fx-fg-muted; }
 .cell-examples { -fx-padding: 0 8 0 8; }
 .taskbar-dark .cell-examples,
@@ -72,7 +69,7 @@
 .controls .button:armed { -fx-scale-x: .98; -fx-scale-y: .98; }
 
 /* Mini overrides */
-.taskbar-mini .cell-front, .taskbar-mini .cell-back { -fx-font-size: 17px; }
+.taskbar-mini .cell-front, .taskbar-mini .cell-back, .taskbar-mini .cell-reading, .taskbar-mini .cell-reading .label { -fx-font-size: 16px; }
 .taskbar-mini .today { -fx-font-size: 0; }
 .taskbar-mini .batch-info { -fx-font-size: 11px; }
 

@@ -27,6 +27,7 @@ public class ExcelImportService {
         public int totalRows;
         public int insertedNotes;
         public int insertedCards;
+        public int updatedNotes;
         public int skippedRows;
         public int deckCreated;
         public String message;
@@ -34,6 +35,7 @@ public class ExcelImportService {
             return "Imported rows=" + totalRows +
                     ", notes=" + insertedNotes +
                     ", cards=" + insertedCards +
+                    ", updated=" + updatedNotes +
                     ", skipped=" + skippedRows +
                     (deckCreated > 0 ? (", new decks=" + deckCreated) : "");
         }
@@ -101,20 +103,38 @@ public class ExcelImportService {
                         newDecks++;
                     }
 
-                    com.memorizer.model.Note n = new com.memorizer.model.Note();
-                    n.deckId = deckId;
-                    n.front = front;
-                    n.back = back;
-                    n.reading = str(row, header.get("reading"));
-                    n.pos = str(row, header.get("pos"));
-                    n.examples = str(row, header.get("examples"));
-                    n.tags = str(row, header.get("tags"));
+                    // Normalize key for deduplication: remove ASCII spaces from front/back
+                    String keyFront = front.replace(" ", "");
+                    String keyBack  = back.replace(" ", "");
 
-                    long noteId = noteRepo.insert(n);
-                    cardRepo.insertForNote(noteId);
+                    // Normalize examples: treat Shift+Enter as separate sentences; keep one per line
+                    String examplesRaw = str(row, header.get("examples"));
+                    String examples = normalizeExamples(examplesRaw);
 
-                    rpt.insertedNotes++;
-                    rpt.insertedCards++;
+                    String reading = str(row, header.get("reading"));
+                    String pos = str(row, header.get("pos"));
+                    String tags = str(row, header.get("tags"));
+
+                    java.util.Optional<Long> existingId = noteRepo.findIdByFrontBackNoSpaces(keyFront, keyBack);
+                    if (existingId.isPresent()) {
+                        // Update non-key fields only (don't touch front/back or card scheduling)
+                        noteRepo.updateNonKeyFields(existingId.get(), deckId, reading, pos, examples, tags);
+                        rpt.updatedNotes++;
+                    } else {
+                        // Insert new note + card
+                        com.memorizer.model.Note n = new com.memorizer.model.Note();
+                        n.deckId = deckId;
+                        n.front = front;
+                        n.back = back;
+                        n.reading = reading;
+                        n.pos = pos;
+                        n.examples = examples;
+                        n.tags = tags;
+                        long noteId = noteRepo.insert(n);
+                        cardRepo.insertForNote(noteId);
+                        rpt.insertedNotes++;
+                        rpt.insertedCards++;
+                    }
                 }
                 conn.commit();
             } catch (Exception ex) {
@@ -145,5 +165,22 @@ public class ExcelImportService {
         if (c.getCellType() == CellType.NUMERIC) return String.valueOf(c.getNumericCellValue());
         if (c.getCellType() == CellType.BOOLEAN) return String.valueOf(c.getBooleanCellValue());
         return null;
+    }
+
+    /** Normalize examples: collapse CRLF/CR to LF, trim lines, remove empties, join by LF. */
+    private static String normalizeExamples(String raw) {
+        if (raw == null) return null;
+        String s = raw.replace("\r\n", "\n").replace('\r', '\n');
+        String[] parts = s.split("\n");
+        StringBuilder out = new StringBuilder();
+        for (String p : parts) {
+            if (p == null) continue;
+            String t = p.trim();
+            if (!t.isEmpty()) {
+                if (out.length() > 0) out.append('\n');
+                out.append(t);
+            }
+        }
+        return out.length() == 0 ? null : out.toString();
     }
 }

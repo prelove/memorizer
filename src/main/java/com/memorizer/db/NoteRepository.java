@@ -77,6 +77,37 @@ public class NoteRepository {
         }
     }
 
+    /** Find a note id by front/back after removing ASCII spaces from both values. */
+    public Optional<Long> findIdByFrontBackNoSpaces(String frontNoSpaces, String backNoSpaces) {
+        String sql = "SELECT id FROM note WHERE REPLACE(front,' ','')=? AND REPLACE(back,' ','')=? LIMIT 1";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            ps.setString(1, frontNoSpaces);
+            ps.setString(2, backNoSpaces);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(rs.getLong(1));
+                return Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("findIdByFrontBackNoSpaces failed", e);
+        }
+    }
+
+    /** Update non-key fields for an existing note (does not touch front/back or card scheduling). */
+    public void updateNonKeyFields(long noteId, Long deckId, String reading, String pos, String examples, String tags) {
+        String sql = "UPDATE note SET deck_id=?, reading=?, pos=?, examples=?, tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            if (deckId == null) ps.setNull(1, Types.BIGINT); else ps.setLong(1, deckId);
+            ps.setString(2, reading);
+            ps.setString(3, pos);
+            ps.setString(4, examples);
+            ps.setString(5, tags);
+            ps.setLong(6, noteId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("updateNonKeyFields failed", e);
+        }
+    }
+
     /** Load a note by card id (join card->note). */
     /** Load the note associated with a given card id. */
     public Optional<Note> findByCardId(long cardId) {
