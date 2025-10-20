@@ -131,3 +131,17 @@
 .taskbar-light .button:disabled .text,
 .taskbar-light .label:disabled { -fx-text-fill: -fx-fg-disabled; }
 .taskbar-light .ikonli-font-icon, .taskbar-light .svg-icon, .taskbar-light .glyph { -fx-fill: -fx-icon; }
+
+/* Subtle progress styling for light theme */
+.taskbar-light .progress-bar > .track {
+  -fx-background-color: rgba(31,36,48,0.12);
+  -fx-background-insets: 0;
+  -fx-background-radius: 6;
+}
+.taskbar-light .progress-bar > .bar {
+  -fx-background-color: rgba(31,36,48,0.28);
+  -fx-background-insets: 0;
+  -fx-background-radius: 6;
+}
+/* Hide vertical separator lines in drawer (light) */
+.taskbar-light .separator:vertical > .line { -fx-border-color: transparent; -fx-background-color: transparent; }

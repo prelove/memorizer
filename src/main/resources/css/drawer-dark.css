@@ -125,7 +125,7 @@
   -fx-background-color: #2B2F36;
 }
 
-/* Global force for text-bearing nodes — keep light FG */
+/* Global force for text-bearing nodes 遯ｶ繝ｻkeep light FG */
 .taskbar-dark .label,
 .taskbar-dark .text,
 .taskbar-dark .button .text,
@@ -172,3 +172,17 @@
 .taskbar-dark.popup .text-area:focused {
   -fx-border-color: rgba(76,141,246,0.55);
 }
+
+/* Subtle progress styling for dark theme */
+.taskbar-dark .progress-bar > .track {
+  -fx-background-color: rgba(255,255,255,0.10);
+  -fx-background-insets: 0;
+  -fx-background-radius: 6;
+}
+.taskbar-dark .progress-bar > .bar {
+  -fx-background-color: rgba(255,255,255,0.22);
+  -fx-background-insets: 0;
+  -fx-background-radius: 6;
+}
+/* Hide vertical separator lines in drawer (dark) */
+.taskbar-dark .separator:vertical > .line { -fx-border-color: transparent; -fx-background-color: transparent; }

@@ -108,15 +108,15 @@ public class MainStage extends Stage {
         setScene(scene);
 
         // Ensure we size to the OS work area the moment this window is shown
+        // Default to half the screen size the first time it shows
         setOnShown(e -> {
             javafx.geometry.Rectangle2D vb = javafx.stage.Screen.getPrimary().getVisualBounds();
-            setX(Math.floor(vb.getMinX()));
-            setY(Math.floor(vb.getMinY()));
-            setWidth(Math.ceil(vb.getWidth()));
-            setHeight(Math.ceil(vb.getHeight() + 1));
+            double w = Math.ceil(vb.getWidth() / 2.0);
+            double h = Math.ceil(vb.getHeight() / 2.0);
+            double x = Math.floor(vb.getMinX() + (vb.getWidth() - w) / 2.0);
+            double y = Math.floor(vb.getMinY() + (vb.getHeight() - h) / 2.0);
+            setX(x); setY(y); setWidth(w); setHeight(h);
         });
-
-        setOnCloseRequest(e -> hide());
         refreshStats();
         loadNextForStudy();
     }
@@ -190,14 +190,14 @@ public class MainStage extends Stage {
         RadioMenuItem miAll = new RadioMenuItem("All Decks"); miAll.setToggleGroup(tg);
         String sel = Config.get("app.deck.filter","all");
         if ("all".equalsIgnoreCase(sel)) miAll.setSelected(true);
-        miAll.setOnAction(e -> { Config.set("app.deck.filter","all"); reloadPlan(); refreshStats(); try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s!=null) s.refreshTodayProgress(); } catch (Exception ignored) {} });
+        miAll.setOnAction(e -> { Config.set("app.deck.filter","all"); study.rebuildTodayPlan(); reloadPlan(); refreshStats(); try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s!=null) s.refreshTodayProgress(); } catch (Exception ignored) {} });
         mDeck.getItems().add(miAll);
         java.util.List<com.memorizer.model.Deck> decks = new com.memorizer.db.DeckRepository().listAll();
         for (com.memorizer.model.Deck d : decks) {
             RadioMenuItem item = new RadioMenuItem(d.name + " (#"+d.id+")");
             item.setToggleGroup(tg);
             if (String.valueOf(d.id).equals(sel)) item.setSelected(true);
-            item.setOnAction(ev -> { Config.set("app.deck.filter", String.valueOf(d.id)); reloadPlan(); refreshStats(); try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s!=null) s.refreshTodayProgress(); } catch (Exception ignored) {} });
+            item.setOnAction(ev -> { Config.set("app.deck.filter", String.valueOf(d.id)); study.rebuildTodayPlan(); reloadPlan(); refreshStats(); try { com.memorizer.ui.StealthStage s = com.memorizer.app.AppContext.getStealth(); if (s!=null) s.refreshTodayProgress(); } catch (Exception ignored) {} });
             mDeck.getItems().add(item);
         }
         mView.getItems().addAll(mTheme, new SeparatorMenuItem(), mDeck);
@@ -250,10 +250,10 @@ public class MainStage extends Stage {
         } catch (Exception ignored) {}
         return "Memorizer User Manual\n\n" +
                "- Stealth Banner: Normal/Mini modes (T to toggle theme, M to toggle mode).\n" +
-               "- Flip cycle: Front 遶翫・Back 遶翫・Front+Back+Reading/Pos+Examples 遶翫・Front.\n" +
+               "- Flip cycle: Front 鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ蜈ｷ・ｽ・ｹ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｯ繝ｻ・ｩ髫ｲ・､隲橸ｽｺ隨ｳ蜀暦ｽｹ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・｢鬮ｫ・ｴ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻBack 鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ蜈ｷ・ｽ・ｹ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｯ繝ｻ・ｩ髫ｲ・､隲橸ｽｺ隨ｳ蜀暦ｽｹ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・｢鬮ｫ・ｴ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻFront+Back+Reading/Pos+Examples 鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ蜈ｷ・ｽ・ｹ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｯ繝ｻ・ｩ髫ｲ・､隲橸ｽｺ隨ｳ蜀暦ｽｹ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・｢鬮ｫ・ｴ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻFront.\n" +
                "- Rating: Again/Hard/Good/Easy (1/2/3/4).\n" +
                "- Progress: Today target bar with overlay text.\n" +
-               "- Decks: View 遶翫・Deck to filter; Data 遶翫・New Deck/Entry to create.\n" +
+               "- Decks: View 鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ蜈ｷ・ｽ・ｹ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｯ繝ｻ・ｩ髫ｲ・､隲橸ｽｺ隨ｳ蜀暦ｽｹ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・｢鬮ｫ・ｴ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻDeck to filter; Data 鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ蜈ｷ・ｽ・ｹ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｯ繝ｻ・ｩ髫ｲ・､隲橸ｽｺ隨ｳ蜀暦ｽｹ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・｢鬮ｫ・ｴ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻNew Deck/Entry to create.\n" +
                "- Shortcuts: SPACE/ENTER flip, F8 toggle banner, ESC hide.\n";
     }
 
@@ -821,13 +821,16 @@ public class MainStage extends Stage {
 
     // ---- public helpers ----
     public void showAndFocus() {
-        // Fit to OS work area so bottom edge is flush with taskbar
+        // Default to half the screen size and center
         javafx.geometry.Rectangle2D vb = javafx.stage.Screen.getPrimary().getVisualBounds();
-        setX(Math.floor(vb.getMinX()));
-        setY(Math.floor(vb.getMinY()));
-        // add a tiny fudge on height to avoid a 1px gap due to DPI rounding
-        setWidth(Math.ceil(vb.getWidth()));
-        setHeight(Math.ceil(vb.getHeight() + 1));
+        double w = Math.ceil(vb.getWidth() / 2.0);
+        double h = Math.ceil(vb.getHeight() / 2.0);
+        double x = Math.floor(vb.getMinX() + (vb.getWidth() - w) / 2.0);
+        double y = Math.floor(vb.getMinY() + (vb.getHeight() - h) / 2.0);
+        setX(x);
+        setY(y);
+        setWidth(w);
+        setHeight(h);
         if (!isShowing()) show();
         toFront(); requestFocus(); setIconified(false);
         refreshStats();
