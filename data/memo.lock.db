@@ -1,6 +1,6 @@
 #FileLock
-#Mon Oct 20 22:47:20 JST 2025
+#Tue Oct 21 23:49:43 JST 2025
 hostName=W540
-id=19a01dfd6e723e62f858b6b0461732db9e0c2681ada
+id=19a073f3fc69d800169bd311cc0347d2641a3490c90
 method=file
-server=192.168.1.107\:12982
+server=172.18.16.1\:12043

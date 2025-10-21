@@ -224,8 +224,15 @@ public class StudyService {
                 }
             }
         } catch (Exception ignored) {}
-        if (allowFallback) return nextCardOrFallback();
+        // Respect deck filter: if a specific deck is selected, avoid cross-deck fallback
+        boolean allDecks = isDeckFilterAll();
+        if (allowFallback && allDecks) return nextCardOrFallback();
         return java.util.Optional.empty();
+    }
+
+    private boolean isDeckFilterAll() {
+        String sel = com.memorizer.app.Config.get("app.deck.filter", "all");
+        return sel == null || sel.trim().isEmpty() || "all".equalsIgnoreCase(sel.trim());
     }
 
 /** Try next due/new; if none, fallback to any available card. */
@@ -251,7 +258,8 @@ public class StudyService {
     public Optional<CardView> nextForBatch(long excludeCardId, boolean allowFallback) {
         com.memorizer.db.CardRepository repo = new com.memorizer.db.CardRepository();
         java.util.Optional<com.memorizer.model.Card> oc = repo.findNextDueOrNewExcluding(excludeCardId);
-        if (!oc.isPresent() && allowFallback) {
+        boolean allDecks = isDeckFilterAll();
+        if (!oc.isPresent() && allowFallback && allDecks) {
             oc = repo.findAnyAvailableExcluding(excludeCardId);
         }
         if (!oc.isPresent()) return Optional.empty();
