@@ -159,9 +159,10 @@ public class StealthStage extends Stage {
         c3.setHgrow(Priority.ALWAYS); // allow back to extend horizontally when space is available
         c4.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(c0,c1,c2,c3,c4,c5,c6,c7);
-        // Center row vertically
+        // Center row vertically with fill behavior
         RowConstraints row = new RowConstraints();
         row.setValignment(VPos.CENTER);
+        row.setVgrow(Priority.ALWAYS); // Allow row to grow and fill available space
         grid.getRowConstraints().add(row);
 
         int col = 0;
@@ -366,6 +367,12 @@ public class StealthStage extends Stage {
             else if (state == 1) text = safe(v.getBack());
             else if (state == 2) text = rp;
             else text = examplesMgr.currentSingleLine();
+            
+            // 在 Mini 模式下，将换行符替换为空格以保持单行显示
+            if (text != null) {
+                text = text.replace("\n", " ").replace("\r", " ");
+            }
+            
             miniContent.setText(text);
             miniContent.setVisible(true); miniContent.setManaged(true);
             // Only examples state scrolls horizontally

@@ -44,7 +44,7 @@ final class StealthWindowPositioner {
             double w = Math.max(320, screenW * frac);
             stage.setWidth(w); stage.setHeight(h);
             stage.setX(screenX + (screenW - w) / 2.0);
-            stage.setY(screenY + screenH - h);
+            stage.setY(screenY + screenH - h - 10); // 从任务栏往上移10像素
         } else {
             double h = 76 * scale;
             double frac = Double.parseDouble(com.memorizer.app.Config.get("app.window.stealth.width-fraction", "0.98"));

@@ -73,6 +73,7 @@
 
 /* Progress */
 .cell-progress .progress-bar.progress-large { -fx-pref-height: 34; }
+.cell-progress .today-label { -fx-font-size: 11px; } /* 减小 Today 进度的字体大小 */
 
 /* Rating buttons: pastel body fill */
 .btn-answer {
