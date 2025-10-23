@@ -9,7 +9,7 @@
   -fx-background-color: linear-gradient(to bottom, #F3F4F6, #E9EBEF);
 }
 .taskbar-light.taskbar-mini {
-  -fx-padding: 6 10 6 10; /* Mini - 32px row + 12px total padding = 44 */
+  -fx-padding: 4 10 4 10; /* Mini - 减少垂直padding以更好地垂直居中 */
 }
 
 .root {

@@ -48,6 +48,18 @@ public class MainStage extends Stage {
         setMinWidth(720);
         setMinHeight(480);
 
+        // 设置窗口图标
+        try {
+            java.net.URL iconUrl = getClass().getResource("/icon.png");
+            if (iconUrl != null) {
+                javafx.scene.image.Image icon = new javafx.scene.image.Image(iconUrl.toString());
+                getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            // 记录日志但不中断
+            System.out.println("Failed to load main stage icon: " + e.getMessage());
+        }
+
         BorderPane root = new BorderPane();
         MenuBarBuilder menuBuilder = new MenuBarBuilder(
                 this,
@@ -115,7 +127,8 @@ public class MainStage extends Stage {
     private void sizeToHalfScreen() {
         Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
         double width = Math.ceil(visualBounds.getWidth() / 2.0);
-        double height = Math.ceil(visualBounds.getHeight() / 2.0);
+        // 增加高度1/4
+        double height = Math.ceil(visualBounds.getHeight() / 2.0 * 1.25);
         double x = Math.floor(visualBounds.getMinX() + (visualBounds.getWidth() - width) / 2.0);
         double y = Math.floor(visualBounds.getMinY() + (visualBounds.getHeight() - height) / 2.0);
         setX(x);

@@ -38,6 +38,18 @@ public class PreferencesStage extends Stage {
         setTitle("Preferences");
         setResizable(false);
 
+        // 设置窗口图标
+        try {
+            java.net.URL iconUrl = getClass().getResource("/icon.png");
+            if (iconUrl != null) {
+                javafx.scene.image.Image icon = new javafx.scene.image.Image(iconUrl.toString());
+                getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            // 记录日志但不中断
+            System.out.println("Failed to load preferences stage icon: " + e.getMessage());
+        }
+
         TabPane tabs = new TabPane();
         tabs.getTabs().add(new Tab("General", buildGeneralTab()));
         tabs.getTabs().add(new Tab("Scheduler", buildSchedulerTab()));

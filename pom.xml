@@ -6,7 +6,7 @@
 
   <groupId>com.memorizer</groupId>
   <artifactId>memorizer</artifactId>
-  <version>0.3.0</version>
+  <version>0.5.0</version>
   <name>Memorizer</name>
   <description>Lightweight desktop memorization assistant (Java8 + JavaFX)</description>
 

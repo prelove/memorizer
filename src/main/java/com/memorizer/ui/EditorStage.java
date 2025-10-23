@@ -33,9 +33,29 @@ public class EditorStage extends Stage {
         setTitle("Edit Note");
         setWidth(600); setHeight(480);
 
+        // 设置窗口图标
+        try {
+            java.net.URL iconUrl = getClass().getResource("/icon.png");
+            if (iconUrl != null) {
+                javafx.scene.image.Image icon = new javafx.scene.image.Image(iconUrl.toString());
+                getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            // 记录日志但不中断
+            System.out.println("Failed to load editor stage icon: " + e.getMessage());
+        }
+
         GridPane g = new GridPane();
         g.setPadding(new Insets(12));
         g.setHgap(10); g.setVgap(8);
+
+        // 设置列约束：第一列（标签）使用固定宽度，第二列（输入控件）占据剩余空间
+        javafx.scene.layout.ColumnConstraints labelCol = new javafx.scene.layout.ColumnConstraints();
+        labelCol.setMinWidth(120); // 设置标签列最小宽度
+        labelCol.setPrefWidth(120); // 设置标签列首选宽度
+        javafx.scene.layout.ColumnConstraints inputCol = new javafx.scene.layout.ColumnConstraints();
+        inputCol.setHgrow(javafx.scene.layout.Priority.ALWAYS); // 输入列占据剩余空间
+        g.getColumnConstraints().addAll(labelCol, inputCol);
 
         int r = 0;
         g.add(new Label("Front:"), 0, r); g.add(tfFront, 1, r++);

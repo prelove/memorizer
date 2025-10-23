@@ -4,6 +4,7 @@ import com.memorizer.app.AppContext;
 import com.memorizer.app.Config;
 import com.memorizer.app.Scheduler;
 import com.memorizer.app.TrayActions;
+import com.memorizer.app.WebServerManager;
 import com.memorizer.db.DeckRepository;
 import com.memorizer.model.Deck;
 import com.memorizer.service.StudyService;
@@ -75,21 +76,106 @@ public class MenuBarBuilder {
         return menu;
     }
 
+    /**
+     * Build Data menu for creating decks and entries.
+     */
+    private Menu buildDataMenu() {
+        Menu menu = new Menu("Data");
+
+        MenuItem miNewDeck = new MenuItem("New Deck...");
+        miNewDeck.setOnAction(e -> DialogFactory.showNewDeckDialog(owner, this::showNotice));
+
+        MenuItem miNewEntry = new MenuItem("New Entry...");
+        miNewEntry.setOnAction(e -> DialogFactory.showNewEntryDialog(owner, this::showNotice));
+
+        // Add sync server submenu
+        Menu mSync = buildSyncMenu();
+
+        menu.getItems().addAll(miNewDeck, miNewEntry, new SeparatorMenuItem(), mSync);
+
+        return menu;
+    }
+
     /**
-     * Build Data menu for creating decks and entries.
+     * Build Sync submenu with server controls.
      */
-    private Menu buildDataMenu() {
-        Menu menu = new Menu("Data");
+    private Menu buildSyncMenu() {
+        Menu menu = new Menu("Sync Server");
 
-        MenuItem miNewDeck = new MenuItem("New Deck...");
-        miNewDeck.setOnAction(e -> DialogFactory.showNewDeckDialog(owner, this::showNotice));
+        MenuItem miEnable = new MenuItem("Enable Server");
+        miEnable.setOnAction(e -> enableSyncServer());
 
-        MenuItem miNewEntry = new MenuItem("New Entry...");
-        miNewEntry.setOnAction(e -> DialogFactory.showNewEntryDialog(owner, this::showNotice));
+        MenuItem miDisable = new MenuItem("Disable Server");
+        miDisable.setOnAction(e -> disableSyncServer());
 
-        menu.getItems().addAll(miNewDeck, miNewEntry);
+        MenuItem miPair = new MenuItem("Pair Mobile");
+        miPair.setOnAction(e -> openPairingPage());
+
+        MenuItem miStatus = new MenuItem("Server Status");
+        miStatus.setOnAction(e -> showServerStatus());
+
+        menu.getItems().addAll(miEnable, miDisable, miPair, new SeparatorMenuItem(), miStatus);
 
         return menu;
+    }
+
+    /**
+     * Enable sync server.
+     */
+    private void enableSyncServer() {
+        try {
+            com.memorizer.app.WebServerManager manager = com.memorizer.app.WebServerManager.get();
+            if (!manager.isRunning()) {
+                manager.start();
+                showNotice("Sync server enabled");
+            } else {
+                showNotice("Sync server is already running");
+            }
+        } catch (Exception ex) {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR, 
+                "Failed to enable sync server: " + ex.getMessage(), 
+                javafx.scene.control.ButtonType.OK);
+            alert.showAndWait();
+        }
+    }
+
+    /**
+     * Disable sync server.
+     */
+    private void disableSyncServer() {
+        try {
+            com.memorizer.app.WebServerManager manager = com.memorizer.app.WebServerManager.get();
+            if (manager.isRunning()) {
+                manager.stop();
+                showNotice("Sync server disabled");
+            } else {
+                showNotice("Sync server is not running");
+            }
+        } catch (Exception ex) {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR, 
+                "Failed to disable sync server: " + ex.getMessage(), 
+                javafx.scene.control.ButtonType.OK);
+            alert.showAndWait();
+        }
+    }
+
+    /**
+     * Show server status.
+     */
+    private void showServerStatus() {
+        try {
+            com.memorizer.app.WebServerManager manager = com.memorizer.app.WebServerManager.get();
+            String status = manager.isRunning() ? "Running on port " + manager.getPort() : "Stopped";
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION, 
+                "Sync Server Status: " + status, 
+                javafx.scene.control.ButtonType.OK);
+            alert.showAndWait();
+        } catch (Exception ex) {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR, 
+                "Failed to get server status: " + ex.getMessage(), 
+                javafx.scene.control.ButtonType.OK);
+            alert.showAndWait();
+        }
     }
 
     /**
@@ -347,6 +433,36 @@ public class MenuBarBuilder {
         alert.setHeaderText("Memorizer");
         alert.setContentText("Simple spaced repetition helper.\n   You");
         alert.showAndWait();
+    }
+
+    /**
+     * Open pairing page in browser.
+     */
+    private void openPairingPage() {
+        try {
+            com.memorizer.app.WebServerManager manager = com.memorizer.app.WebServerManager.get();
+            if (!manager.isRunning()) {
+                manager.start();
+            }
+            
+            int port = manager.getPort();
+            if (port == 0) {
+                port = Config.getInt("app.web.port", 7070);
+            }
+            
+            String httpsUrl = "https://localhost:" + port + "/pair";
+            String httpUrl = "http://localhost:" + port + "/pair";
+            
+            boolean success = com.memorizer.util.Browse.open(httpsUrl);
+            if (!success) {
+                com.memorizer.util.Browse.open(httpUrl);
+            }
+        } catch (Exception ex) {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR, 
+                "Open pairing page failed: " + ex.getMessage(), 
+                javafx.scene.control.ButtonType.OK);
+            alert.showAndWait();
+        }
     }
 
     /**

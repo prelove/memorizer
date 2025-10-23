@@ -31,6 +31,18 @@ public class StudyStage extends Stage {
         setMinWidth(560);
         setMinHeight(320);
 
+        // 设置窗口图标
+        try {
+            java.net.URL iconUrl = getClass().getResource("/icon.png");
+            if (iconUrl != null) {
+                javafx.scene.image.Image icon = new javafx.scene.image.Image(iconUrl.toString());
+                getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            // 记录日志但不中断
+            System.out.println("Failed to load study stage icon: " + e.getMessage());
+        }
+
         VBox root = new VBox(12);
         root.setAlignment(Pos.TOP_LEFT);
         root.setPadding(new Insets(16));

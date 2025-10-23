@@ -143,8 +143,8 @@ public class StealthStage extends Stage {
         // Grid layout per CHECKPOINT (C0..C7)
         grid = new GridPane();
         grid.setHgap(10);
-        grid.setVgap(2);
-        grid.setPadding(new Insets(6, 12, 6, 12));
+        grid.setVgap(0); // 减少垂直间距
+        grid.setPadding(new Insets(0, 12, 0, 12)); // 减少垂直padding以更好地垂直居中
 
         // Column constraints: C4 primary flex; C1/C3 sometimes; others fixed/minimal
         ColumnConstraints c0 = new ColumnConstraints(); // batch/edit
@@ -163,6 +163,7 @@ public class StealthStage extends Stage {
         RowConstraints row = new RowConstraints();
         row.setValignment(VPos.CENTER);
         row.setVgrow(Priority.ALWAYS); // Allow row to grow and fill available space
+        row.setPrefHeight(44); // 设置首选高度以匹配窗口高度
         grid.getRowConstraints().add(row);
 
         int col = 0;
