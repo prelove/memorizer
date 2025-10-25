@@ -15,6 +15,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.Region;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -69,9 +70,15 @@ public class MainStage extends Stage {
                 this::reloadPlan
         );
         MenuBar menuBar = menuBuilder.build();
-        root.setTop(menuBar);
+        HBox crumbs = new HBox(8);
+        crumbs.setPadding(new Insets(6, 12, 6, 12));
+        Label crumbLabel = new Label("Home / Dashboard");
+        crumbs.getChildren().add(crumbLabel);
+        VBox top = new VBox(menuBar, crumbs);
+        root.setTop(top);
 
-        ScrollPane centerScroll = new ScrollPane(buildTabs());
+        TabPane tabsVar = buildTabs();
+        ScrollPane centerScroll = new ScrollPane(tabsVar);
         centerScroll.setFitToWidth(true);
         centerScroll.setFitToHeight(false);
         centerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -90,6 +97,12 @@ public class MainStage extends Stage {
         setOnShown(e -> sizeToHalfScreen());
 
         refreshStats();
+
+        // Update breadcrumbs on tab selection
+        tabsVar.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
+            String name = (nv == null || nv.getText() == null) ? "Dashboard" : nv.getText();
+            crumbLabel.setText("Home / " + name);
+        });
     }
 
     private TabPane buildTabs() {

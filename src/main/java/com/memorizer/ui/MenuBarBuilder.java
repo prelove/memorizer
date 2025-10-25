@@ -76,24 +76,46 @@ public class MenuBarBuilder {
         return menu;
     }
 
-    /**
-     * Build Data menu for creating decks and entries.
-     */
-    private Menu buildDataMenu() {
-        Menu menu = new Menu("Data");
-
-        MenuItem miNewDeck = new MenuItem("New Deck...");
-        miNewDeck.setOnAction(e -> DialogFactory.showNewDeckDialog(owner, this::showNotice));
-
-        MenuItem miNewEntry = new MenuItem("New Entry...");
-        miNewEntry.setOnAction(e -> DialogFactory.showNewEntryDialog(owner, this::showNotice));
-
-        // Add sync server submenu
-        Menu mSync = buildSyncMenu();
-
-        menu.getItems().addAll(miNewDeck, miNewEntry, new SeparatorMenuItem(), mSync);
-
-        return menu;
+    /**
+
+     * Build Data menu for creating decks and entries.
+
+     */
+
+    private Menu buildDataMenu() {
+
+        Menu menu = new Menu("Data");
+
+
+
+        MenuItem miNewDeck = new MenuItem("New Deck...");
+
+        miNewDeck.setOnAction(e -> DialogFactory.showNewDeckDialog(owner, this::showNotice));
+
+
+
+        MenuItem miNewEntry = new MenuItem("New Entry...");
+
+        miNewEntry.setOnAction(e -> DialogFactory.showNewEntryDialog(owner, this::showNotice));
+
+        MenuItem miManageDecks = new MenuItem("Manage Decks...");
+        miManageDecks.setOnAction(e -> {
+            ManageDecksStage m = new ManageDecksStage(owner);
+            m.show();
+        });
+
+        // Add sync server submenu
+
+        Menu mSync = buildSyncMenu();
+
+
+
+        menu.getItems().addAll(miNewDeck, miNewEntry, miManageDecks, new SeparatorMenuItem(), mSync);
+
+
+
+        return menu;
+
     }
 
     /**
@@ -127,7 +149,17 @@ public class MenuBarBuilder {
             com.memorizer.app.WebServerManager manager = com.memorizer.app.WebServerManager.get();
             if (!manager.isRunning()) {
                 manager.start();
-                showNotice("Sync server enabled");
+                // Copy base URL to clipboard for convenience
+                String base = manager.getBaseUrl();
+                if (base != null) {
+                    try {
+                        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
+                                .setContents(new java.awt.datatransfer.StringSelection(base), null);
+                    } catch (Exception ignored) {}
+                    showNotice("Sync server enabled: " + base + " (copied)");
+                } else {
+                    showNotice("Sync server enabled");
+                }
             } else {
                 showNotice("Sync server is already running");
             }

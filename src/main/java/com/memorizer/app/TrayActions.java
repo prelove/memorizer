@@ -26,6 +26,13 @@ public final class TrayActions {
         trayIconRef = icon;
     }
 
+    /** Show a tray notification balloon if the tray icon is available. */
+    public static void notify(String title, String message, TrayIcon.MessageType type) {
+        if (trayIconRef != null && title != null && message != null) {
+            trayIconRef.displayMessage(title, message, type == null ? TrayIcon.MessageType.INFO : type);
+        }
+    }
+
     /** Show the stealth window immediately with the current/next card if available. */
     public static void showStealthNow(StudyService study) {
         StealthStage stage = com.memorizer.app.AppContext.getStealth();

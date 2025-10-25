@@ -61,7 +61,9 @@ public class DialogFactory {
             }
             try {
                 new DeckRepository().getOrCreate(name);
-                noticeCallback.accept("Deck created: " + name);
+                String msg = "Deck created: " + name;
+                noticeCallback.accept(msg);
+                com.memorizer.app.TrayActions.notify("Memorizer", msg, java.awt.TrayIcon.MessageType.INFO);
                 dialog.close();
             } catch (Exception ex) {
                 new Alert(Alert.AlertType.ERROR, 
@@ -206,8 +208,9 @@ public class DialogFactory {
                 new CardRepository().insertForNote(noteId);
                 
                 String deckName = selectedDeck != null ? selectedDeck.name : "";
-                noticeCallback.accept("Entry saved" + 
-                    (selectedDeck != null ? " to " + deckName : ""));
+                String msg = "Entry saved" + (selectedDeck != null ? " to " + deckName : "");
+                noticeCallback.accept(msg);
+                com.memorizer.app.TrayActions.notify("Memorizer", msg, java.awt.TrayIcon.MessageType.INFO);
                 dialog.close();
             } catch (Exception ex) {
                 new Alert(Alert.AlertType.ERROR, 

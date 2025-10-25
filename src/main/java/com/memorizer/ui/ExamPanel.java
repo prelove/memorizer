@@ -660,10 +660,30 @@ public class ExamPanel {
         String cwSz = compact ? "14px" : "15px";
         String cwPad = compact ? "6 14" : "8 18";
         String base = "-fx-font-weight: 700; -fx-text-fill: white; -fx-background-radius: 6;";
-        btnExamCorrect.setStyle("-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#38a169, #2f855a);");
-        btnExamWrong.setStyle("-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#e53e3e, #c53030);");
+        String greenN = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
+                " -fx-background-color: linear-gradient(#38a169, #2f855a);";
+        String greenH = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
+                " -fx-background-color: linear-gradient(#48bb78, #2f855a);";
+        String greenP = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
+                " -fx-background-color: linear-gradient(#2f855a, #276749);";
+        String redN = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
+                " -fx-background-color: linear-gradient(#e53e3e, #c53030);";
+        String redH = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
+                " -fx-background-color: linear-gradient(#f56565, #c53030);";
+        String redP = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
+                " -fx-background-color: linear-gradient(#c53030, #9b2c2c);";
+
+        btnExamCorrect.setStyle(greenN);
+        btnExamCorrect.setOnMouseEntered(e -> btnExamCorrect.setStyle(greenH));
+        btnExamCorrect.setOnMouseExited(e -> btnExamCorrect.setStyle(greenN));
+        btnExamCorrect.setOnMousePressed(e -> btnExamCorrect.setStyle(greenP));
+        btnExamCorrect.setOnMouseReleased(e -> btnExamCorrect.setStyle(greenH));
+
+        btnExamWrong.setStyle(redN);
+        btnExamWrong.setOnMouseEntered(e -> btnExamWrong.setStyle(redH));
+        btnExamWrong.setOnMouseExited(e -> btnExamWrong.setStyle(redN));
+        btnExamWrong.setOnMousePressed(e -> btnExamWrong.setStyle(redP));
+        btnExamWrong.setOnMouseReleased(e -> btnExamWrong.setStyle(redH));
         btnExamCorrect.setMinHeight(compact ? 30 : 34);
         btnExamWrong.setMinHeight(compact ? 30 : 34);
     }

@@ -17,6 +17,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Region;
+import javafx.scene.control.ProgressBar;
+import javafx.geometry.Pos;
+import javafx.scene.control.Tooltip;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -44,8 +47,11 @@ public class DashboardPanel {
     private BarChart<String, Number> ratingDistributionChart;
     private BarChart<String, Number> cardStatusChart;
     
-    // Task progress indicator
+    // Task progress indicator (rectangles) + fallback bar
     private HBox taskProgressContainer;
+    private HBox taskProgressBarRow;
+    private final ProgressBar taskProgressBar = new ProgressBar(0);
+    private final Label taskProgressText = new Label("0/0");
 
     public DashboardPanel(StudyService studyService, Scheduler scheduler) {
         this.studyService = studyService;
@@ -162,8 +168,18 @@ public class DashboardPanel {
         Label taskProgressTitle = new Label("Today's Task Progress");
         taskProgressTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         taskProgressContainer = new HBox(2);
+        taskProgressContainer.setAlignment(Pos.CENTER_LEFT);
         taskProgressContainer.setPrefHeight(30);
-        chartsContainer.getChildren().addAll(taskProgressTitle, taskProgressContainer);
+
+        // Fallback progress bar row for large totals
+        taskProgressBar.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(taskProgressBar, javafx.scene.layout.Priority.ALWAYS);
+        taskProgressBarRow = new HBox(8, taskProgressBar, taskProgressText);
+        taskProgressBarRow.setAlignment(Pos.CENTER_LEFT);
+        taskProgressBarRow.setVisible(false);
+        taskProgressBarRow.setManaged(false);
+
+        chartsContainer.getChildren().addAll(taskProgressTitle, taskProgressContainer, taskProgressBarRow);
         
         return chartsContainer;
     }
@@ -312,14 +328,30 @@ public class DashboardPanel {
      * Update task progress indicator with today's plan.
      */
     private void updateTaskProgressIndicator() {
+        if (taskProgressContainer == null) return;
         // Clear existing indicators
         taskProgressContainer.getChildren().clear();
         
         // Get today's plan
         PlanService.Counts planCounts = studyService.planCounts();
-        int totalTasks = planCounts.total;
-        int doneTasks = planCounts.done;
-        int pendingTasks = planCounts.pending;
+        int totalTasks = Math.max(0, planCounts.total);
+        int doneTasks = Math.max(0, planCounts.done);
+        int pendingTasks = Math.max(0, planCounts.pending);
+
+        // Choose rendering mode: rectangles for small totals, bar for large
+        boolean useBar = totalTasks > 60;
+        taskProgressBarRow.setVisible(useBar);
+        taskProgressBarRow.setManaged(useBar);
+        taskProgressContainer.setVisible(!useBar);
+        taskProgressContainer.setManaged(!useBar);
+
+        if (useBar) {
+            double p = (totalTasks == 0) ? 0.0 : Math.min(1.0, doneTasks / (double) totalTasks);
+            taskProgressBar.setProgress(p);
+            taskProgressText.setText(doneTasks + "/" + totalTasks);
+            Tooltip.install(taskProgressBarRow, new Tooltip("Done: " + doneTasks + ", Pending: " + pendingTasks));
+            return;
+        }
         
         // Create progress indicators
         for (int i = 0; i < totalTasks; i++) {
@@ -336,7 +368,7 @@ public class DashboardPanel {
             } else if (i < doneTasks + pendingTasks) {
                 indicator.setStyle("-fx-background-color: #FF9800; -fx-background-radius: 2;"); // Orange
             }
-            
+            Tooltip.install(indicator, new Tooltip((i < doneTasks) ? "Done" : (i < doneTasks + pendingTasks ? "Pending" : "Queued")));
             taskProgressContainer.getChildren().add(indicator);
         }
     }

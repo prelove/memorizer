@@ -80,6 +80,8 @@ public class MainApp extends Application {
         com.memorizer.service.PlanService planService = new com.memorizer.service.PlanService();
         studyService.bindPlan(planService);
         stealthStage.bindStudy(studyService);
+        AppContext.setStudy(studyService);
+        AppContext.setPlan(planService);
 
         scheduler = new Scheduler(studyService, stealthStage);
         scheduler.start();

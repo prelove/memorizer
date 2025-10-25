@@ -1,6 +1,6 @@
 #FileLock
-#Fri Oct 24 00:04:10 JST 2025
-hostName=W540.mshome.net
-id=19a1199440154a5a55ccbe38f5536a26e70670ea610
+#Sat Oct 25 10:54:37 JST 2025
+hostName=W540
+id=19a19130cc6fc38b58373824fb66215790530d8742a
 method=file
-server=172.27.48.1\:5167
+server=172.18.16.1\:2737

@@ -155,8 +155,14 @@ public class StealthStage extends Stage {
         ColumnConstraints c5 = new ColumnConstraints(); // flip
         ColumnConstraints c6 = new ColumnConstraints(); // answers
         ColumnConstraints c7 = new ColumnConstraints(); // progress
+        // Fix minimal widths for control columns to stabilize layout
+        c0.setMinWidth(80);  c0.setPrefWidth(90);
+        c2.setMinWidth(160); c2.setPrefWidth(200); // reading/pos cap
+        c5.setMinWidth(70);  c5.setPrefWidth(80);  // flip
+        c6.setMinWidth(220); c6.setPrefWidth(260); // answers cluster
+        c7.setMinWidth(220); // progress bar region
         c1.setHgrow(Priority.SOMETIMES);
-        c3.setHgrow(Priority.ALWAYS); // allow back to extend horizontally when space is available
+        c3.setHgrow(Priority.SOMETIMES);
         c4.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(c0,c1,c2,c3,c4,c5,c6,c7);
         // Center row vertically with fill behavior
@@ -439,6 +445,13 @@ public class StealthStage extends Stage {
         readingPos.setTextOverrun(OverrunStyle.ELLIPSIS);
         front.setWrapText(!mini);
         back.setWrapText(!mini);
+        if (!mini) {
+            clampTwoLines(front);
+            clampTwoLines(back);
+        } else {
+            front.setClip(null);
+            back.setClip(null);
+        }
 
         boolean showNormalCenters = !mini;
         front.setVisible(showNormalCenters); front.setManaged(showNormalCenters);
@@ -481,6 +494,17 @@ public class StealthStage extends Stage {
     }
 
     private static String safe(String s) { return s == null ? "" : s; }
+
+    /** Clamp a wrapping label to two lines using a simple rectangle clip. */
+    private void clampTwoLines(Label lbl) {
+        if (lbl == null) return;
+        double lineH = (lbl.getFont() != null ? lbl.getFont().getSize() : 16.0) + 4.0; // approx line height
+        double h = Math.max(28.0, lineH * 2.0);
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        clip.widthProperty().bind(lbl.widthProperty());
+        clip.setHeight(h);
+        lbl.setClip(clip);
+    }
 
     private void bindTooltipTo(Label label) {
         if (label == null) return;

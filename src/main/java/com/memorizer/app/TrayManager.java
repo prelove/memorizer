@@ -213,6 +213,11 @@ public final class TrayManager {
         trayIcon.setImageAutoSize(true);
         TrayActions.attachTrayIcon(trayIcon);
 
+        // Default action: double-click tray icon to open main window
+        trayIcon.addActionListener(e -> Platform.runLater(() -> {
+            if (mainStage != null) mainStage.showAndFocus();
+        }));
+
         miOpenMain.addActionListener(e -> Platform.runLater(mainStage::showAndFocus));
         miShow.addActionListener(e -> Platform.runLater(() -> TrayActions.showStealthNow(study)));
 
@@ -319,4 +324,3 @@ public final class TrayManager {
         return img;
     }
 }
-

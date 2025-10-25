@@ -55,6 +55,7 @@ Key settings are documented inline. Highlights:
   - Green: Completed tasks
   - Orange: Pending tasks
   - Gray: Not started tasks
+  - For large plans (>60), switches to a compact progress bar with Done/Total label
 
 ## PWA Parity
 
@@ -96,9 +97,8 @@ Key settings are documented inline. Highlights:
 - Sync server controls moved to Data menu.
 
 ### Pending / Next
-- Multi-monitor/taskbar-edge placement; taskbar on top/left/right.
-- Manage Decks window (list/rename/delete); optional Stealth deck badge and hotkey.
-- Tray balloons for create/save success; keep in-window notice.
-- Maven repo config to Central by default; add CI.
-- Add tests (PlanService deck filter, Stealth flip states, repository paths).
-- Persist per-deck challenge last-size hint.
+- Stealth layout polish (baseline alignment, clamps) per checkpoint notes
+- Optional: Exam hover/pressed states via CSS tokens
+- Maven Central build reliability (avoid global Nexus mirrors) / CI
+- Add tests (PlanService deck filter, Stealth flip states, repository paths)
+- Persist per-deck challenge last-size hint

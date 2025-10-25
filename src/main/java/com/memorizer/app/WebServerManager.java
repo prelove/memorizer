@@ -34,11 +34,15 @@ public final class WebServerManager {
     public static WebServerManager get() { return INSTANCE; }
 
     private WebServerManager() {}
+    private static String escape(String s) {
+        if (s == null) return "";
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;").replace("'","&#39;");
+    }
 
     public synchronized void start() {
         if (running || starting) return;
         starting = true;
-        int port = com.memorizer.app.Config.getInt("app.web.port", 7070);
+        int port = com.memorizer.app.Config.getInt("app.web.port", 7777);
         String host = com.memorizer.app.Config.get("app.web.host", "0.0.0.0");
         boolean preferHttps = Boolean.parseBoolean(com.memorizer.app.Config.get("app.web.https.enabled", "true"));
 
@@ -93,6 +97,9 @@ public final class WebServerManager {
 
         this.app = candidate;
 
+        // Register template renderer (server-side web)
+        try { com.memorizer.web.TemplateRenderer.register(); } catch (Throwable ignored) {}
+
         // routes
         app.get("/api/health", ctx -> {
             Map<String, Object> m = new HashMap<>();
@@ -109,11 +116,156 @@ public final class WebServerManager {
                     "<h2>Memorizer Server</h2>"+
                     "<ul>"+
                     "<li><a href='"+base+"/api/health'>/api/health</a></li>"+
+                    "<li><a href='"+base+"/web'>/web</a> (server-rendered web UI)</li>"+
                     "<li><a href='"+base+"/pair'>/pair</a> (mobile pairing)</li>"+
                     "<li><a href='"+base+"/pwa/'>/pwa/</a> (serve PWA if built)</li>"+
                     "</ul>"+
                     "</body></html>";
             ctx.contentType("text/html; charset=utf-8").result(html);
+        });
+
+        // -------- Web (SSR) UI --------
+        // assets from classpath /web/static
+        app.get("/web/static/*", ctx -> {
+            String rel = ctx.path().substring("/web/static/".length());
+            if (rel.contains("..")) { ctx.status(400).result("bad"); return; }
+            java.io.InputStream in = getClass().getResourceAsStream("/web/static/" + rel);
+            if (in == null) { ctx.status(404).result("not found"); return; }
+            String ct = rel.endsWith(".css")?"text/css": rel.endsWith(".js")?"application/javascript":"text/plain";
+            ctx.contentType(ct);
+            ctx.result(in);
+        });
+
+        app.get("/web", ctx -> {
+            StringBuilder content = new StringBuilder();
+            content.append("<section class='grid'>")
+                    .append("<a class='card' href='/web/decks'><h3>Decks</h3><p>Manage your decks.</p></a>")
+                    .append("<a class='card' href='/web/notes'><h3>Browse</h3><p>Find and edit notes.</p></a>")
+                    .append("<a class='card' href='/web/study'><h3>Study</h3><p>Review cards in the browser.</p></a>")
+                    .append("</section>");
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Memorizer Web");
+            m.put("serverMode", httpsActive?"https":"http");
+            m.put("content", content.toString());
+            ctx.render("layout.html", m);
+        });
+
+        app.get("/web/decks", ctx -> {
+            StringBuilder rows = new StringBuilder();
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("SELECT id,name FROM deck ORDER BY id ASC")){
+                try (ResultSet rs = ps.executeQuery()){
+                    while (rs.next()) {
+                        rows.append("<tr><td>").append(rs.getLong(1)).append("</td><td>")
+                                .append(escape(rs.getString(2))).append("</td></tr>");
+                    }
+                }
+            }
+            StringBuilder content = new StringBuilder();
+            content.append("<nav class='crumbs'><a href='/web'>Home</a> / Decks</nav>")
+                    .append("<h2>Decks</h2>")
+                    .append("<form class='row' method='post' action='/web/decks/create'>")
+                    .append("<input type='text' name='name' placeholder='New deck name' required />")
+                    .append("<button type='submit'>Create</button></form>")
+                    .append("<table class='table'><thead><tr><th>ID</th><th>Name</th></tr></thead><tbody>")
+                    .append(rows.toString())
+                    .append("</tbody></table>");
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Decks");
+            m.put("serverMode", httpsActive?"https":"http");
+            m.put("content", content.toString());
+            ctx.render("layout.html", m);
+        });
+
+        app.post("/web/decks/create", ctx -> {
+            String name = ctx.formParam("name");
+            if (name != null && !name.trim().isEmpty()) {
+                try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("INSERT INTO deck(name) VALUES (?)")){
+                    ps.setString(1, name.trim()); ps.executeUpdate();
+                }
+            }
+            ctx.redirect("/web/decks");
+        });
+
+        app.get("/web/notes", ctx -> {
+            Long deckId = null; try { deckId = Long.valueOf(ctx.queryParam("deckId")); } catch (Exception ignored) {}
+            String sql = "SELECT n.id, COALESCE(d.name,''), n.front, n.back FROM note n LEFT JOIN deck d ON d.id=n.deck_id" + (deckId==null?"":" WHERE n.deck_id=?") + " ORDER BY n.id DESC LIMIT 200";
+            StringBuilder list = new StringBuilder();
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(sql)){
+                if (deckId != null) ps.setLong(1, deckId);
+                try (ResultSet rs = ps.executeQuery()){
+                    while (rs.next()) {
+                        list.append("<div class='note'><div class='note-head'><span class='deck'>")
+                                .append(escape(rs.getString(2))).append("</span><span class='id'>#")
+                                .append(rs.getLong(1)).append("</span></div><div class='front'>")
+                                .append(escape(rs.getString(3))).append("</div><div class='back'>")
+                                .append(escape(rs.getString(4))).append("</div></div>");
+                    }
+                }
+            }
+            String content = "<h2>Browse Notes</h2><div class='note-list'>" + list.toString() + "</div>";
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Browse Notes");
+            m.put("serverMode", httpsActive?"https":"http");
+            m.put("content", content);
+            ctx.render("layout.html", m);
+        });
+
+        app.get("/web/study", ctx -> {
+            com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
+            StringBuilder content = new StringBuilder();
+            if (study == null) {
+                content.append("<h2>Study</h2><p class='muted'>No cards available.</p>");
+            } else {
+                boolean reveal = "1".equals(ctx.queryParam("a"));
+                java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.currentOrNextOrFallback();
+                if (!v.isPresent()) {
+                    content.append("<h2>Study</h2><p class='muted'>No cards available.</p>");
+                } else {
+                    com.memorizer.service.StudyService.CardView cv = v.get();
+                    content.append("<h2>Study</h2><div class='study-card'>")
+                            .append("<div class='front'>").append(escape(cv.getFront())).append("</div>");
+                    if (reveal) {
+                        content.append("<div class='back'>").append(escape(cv.getBack())).append("</div>");
+                        String rp = (cv.getReading()==null?"":escape(cv.getReading()));
+                        if (cv.getPos()!=null && !cv.getPos().trim().isEmpty()) rp += " <span class='pos'>["+escape(cv.getPos())+"]</span>";
+                        content.append("<div class='sub'>"+rp+"</div>");
+                        java.util.List<String> ex = cv.getExamples();
+                        if (ex != null && !ex.isEmpty()) {
+                            content.append("<ul class='examples'>");
+                            for (String s : ex) content.append("<li>").append(escape(s)).append("</li>");
+                            content.append("</ul>");
+                        }
+                        content.append("</div>");
+                        content.append("<form method='post' action='/web/study/rate' class='row rate'>")
+                               .append("<button name='rating' value='1' class='btn red'>Again</button>")
+                               .append("<button name='rating' value='2' class='btn amber'>Hard</button>")
+                               .append("<button name='rating' value='3' class='btn green'>Good</button>")
+                               .append("<button name='rating' value='4' class='btn violet'>Easy</button>")
+                               .append("</form>");
+                    } else {
+                        content.append("</div>");
+                        content.append("<div class='row' style='margin-top:12px'><a class='btn primary' href='/web/study?a=1'>Show Answer</a></div>");
+                    }
+                }
+            }
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Study");
+            m.put("serverMode", httpsActive?"https":"http");
+            m.put("flash", "");
+            m.put("content", content.toString());
+            ctx.render("layout.html", m);
+        });
+
+        app.post("/web/study/rate", ctx -> {
+            com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
+            String r = ctx.formParam("rating");
+            if (study != null && r != null) {
+                int val; try { val = Integer.parseInt(r.trim()); } catch (Exception e) { val = 0; }
+                com.memorizer.model.Rating rating;
+                if (val == 1) rating = com.memorizer.model.Rating.AGAIN; else if (val == 2) rating = com.memorizer.model.Rating.HARD; else if (val == 3) rating = com.memorizer.model.Rating.GOOD; else rating = com.memorizer.model.Rating.EASY;
+                study.rate(rating);
+            }
+            ctx.redirect("/web/study");
         });
 
         // server info
@@ -698,48 +850,70 @@ public final class WebServerManager {
 
         // (removed duplicate fallback definition of /api/cards/create; single definition kept above)
 
-        try {
-            app.start(port);
-            running = true;
-            boundPort = port; boundHost = pickLanAddress(host);
-            log.info("Web server started on {}://{}:{}/", (httpsActive?"https":"http"), host, port);
-            starting = false;
-        } catch (Exception ex) {
-            // Try fallback to HTTP if initial attempt failed and HTTPS was preferred
-            if (preferHttps) {
-                log.warn("HTTPS start failed: {}. Retrying with HTTP...", ex.toString());
+        int attempts = 0; boolean started = false; int tryPort = port;
+        while (attempts < 10 && !started) {
+            try {
+                app.start(tryPort);
+                running = true;
+                // Derive actual bound port from Jetty if available (handles ephemeral/ignored tryPort)
+                boundPort = tryPort;
                 try {
-                    // stop previous instance just in case
-                    try { app.stop(); } catch (Exception ignored) {}
-                    final String pwaDist2 = findPwaDist();
-                    this.app = Javalin.create(cfg -> {
-                        cfg.server(() -> buildHttpServer(host, port));
-                        cfg.enableCorsForAllOrigins();
-                    });
-                    httpsActive = false;
-                    // re-register minimal routes
-                    this.app.get("/api/health", ctx -> {
-                        Map<String, Object> m = new HashMap<>();
-                        m.put("status", "ok");
-                        m.put("version", "1.0");
-                        ctx.json(m);
-                    });
-                    // reuse pairing endpoints
-                    registerFallbackPairing(this.app, host, port);
-                    // and re-register protected API routes
-                    registerApiRoutes(this.app);
-                    this.app.start(port);
-                    running = true; boundPort = port; boundHost = pickLanAddress(host);
-                    log.info("Web server started on http://{}:{}/", host, port);
-                    starting = false;
-                } catch (Exception ex2) {
-                    running = false; this.app = null; starting = false;
-                    throw new RuntimeException("Failed to start web server (HTTP fallback also failed)", ex2);
+                    Object srv = app.server();
+                    if (srv instanceof io.javalin.core.JavalinServer) {
+                        org.eclipse.jetty.server.Server js = (org.eclipse.jetty.server.Server) ((io.javalin.core.JavalinServer) srv).server();
+                        if (js != null && js.getConnectors() != null && js.getConnectors().length > 0) {
+                            org.eclipse.jetty.server.Connector conn = js.getConnectors()[0];
+                            if (conn instanceof org.eclipse.jetty.server.ServerConnector) {
+                                int actual = ((org.eclipse.jetty.server.ServerConnector) conn).getLocalPort();
+                                if (actual > 0) boundPort = actual;
+                            }
+                        }
+                    }
+                } catch (Throwable ignored) {}
+                boundHost = pickLanAddress(host);
+                log.info("Web server started on {}://{}:{}/", (httpsActive?"https":"http"), host, boundPort);
+                starting = false; started = true;
+            } catch (Exception ex) {
+                log.warn("Start failed on {}:{} -> {}", host, tryPort, ex.toString());
+                try { app.stop(); } catch (Exception ignored) {}
+                if (preferHttps) {
+                    // Switch to HTTP fallback after first failure
+                    try {
+                        this.app = Javalin.create(cfg -> { cfg.server(() -> buildHttpServer(host, 0)); cfg.enableCorsForAllOrigins(); });
+                        httpsActive = false;
+                        // register minimal routes for new instance
+                        this.app.get("/api/health", ctx -> {
+                            Map<String, Object> m = new HashMap<>();
+                            m.put("status", "ok");
+                            m.put("version", "1.0");
+                            ctx.json(m);
+                        });
+                        registerSsrRoutes(this.app);
+                        // default root to /web
+                        this.app.get("/", ctx -> ctx.redirect("/web"));
+                    } catch (Exception ignored) {}
                 }
-            } else {
-                running = false; this.app = null; starting = false;
-                throw new RuntimeException("Failed to start web server", ex);
+                attempts++;
+                tryPort = (attempts >= 9) ? 0 : (port + attempts); // last attempt: ephemeral
             }
+        }
+        if (!started) {
+            running = false; this.app = null; starting = false;
+            throw new RuntimeException("Failed to start web server after retries");
+        } else if (boundPort == 0) {
+            // If ephemeral port, try to detect real bound port from Jetty
+            try {
+                Object srv = app.server();
+                if (srv instanceof io.javalin.core.JavalinServer) {
+                    org.eclipse.jetty.server.Server js = (org.eclipse.jetty.server.Server) ((io.javalin.core.JavalinServer) srv).server();
+                    if (js != null && js.getConnectors() != null && js.getConnectors().length > 0) {
+                        org.eclipse.jetty.server.Connector conn = js.getConnectors()[0];
+                        if (conn instanceof org.eclipse.jetty.server.ServerConnector) {
+                            boundPort = ((org.eclipse.jetty.server.ServerConnector) conn).getLocalPort();
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {}
         }
     }
 
@@ -753,6 +927,15 @@ public final class WebServerManager {
     public boolean isRunning() { return running; }
     public int getPort() { return boundPort; }
     public String getHost() { return boundHost; }
+    public boolean isHttpsActive() { return httpsActive; }
+    /** Return current base URL (http/https + host + port) if running, otherwise null. */
+    public String getBaseUrl() {
+        if (!running) return null;
+        String scheme = httpsActive ? "https" : "http";
+        String h = (boundHost == null || boundHost.trim().isEmpty()) ? "127.0.0.1" : boundHost;
+        int p = boundPort;
+        return scheme + "://" + h + ":" + p;
+    }
 
     private static Server buildHttpsServer(String host, int port, String keystorePath, String password) {
         // SSL context
@@ -811,6 +994,437 @@ public final class WebServerManager {
         }
     }
 
+    /** Register SSR web routes on the provided app instance. */
+    private void registerSsrRoutes(Javalin aj) {
+        // assets
+        aj.get("/web/static/*", ctx -> {
+            String rel = ctx.path().substring("/web/static/".length());
+            if (rel.contains("..")) { ctx.status(400).result("bad"); return; }
+            java.io.InputStream in = getClass().getResourceAsStream("/web/static/" + rel);
+            if (in == null) { ctx.status(404).result("not found"); return; }
+            String ct = rel.endsWith(".css")?"text/css": rel.endsWith(".js")?"application/javascript":"text/plain";
+            ctx.contentType(ct);
+            ctx.result(in);
+        });
+
+        // home
+        aj.get("/web", ctx -> {
+            StringBuilder content = new StringBuilder();
+            content.append("<section class='grid'>")
+                    .append("<a class='card' href='/web/decks'><h3>Decks</h3><p>Manage your decks.</p></a>")
+                    .append("<a class='card' href='/web/notes'><h3>Browse</h3><p>Find and edit notes.</p></a>")
+                    .append("<a class='card' href='/web/study'><h3>Study</h3><p>Review cards in the browser.</p></a>")
+                    .append("</section>");
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Memorizer Web");
+            m.put("serverMode", httpsActive?"https":"http");
+            String flash = ctx.queryParam("msg");
+            m.put("flash", flash==null?"":"<div class='toast'>"+escape(flash)+"</div>");
+            m.put("content", content.toString());
+            ctx.render("layout.html", m);
+        });
+
+        // decks
+        aj.get("/web/decks", ctx -> {
+            StringBuilder rows = new StringBuilder();
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("SELECT id,name FROM deck ORDER BY id ASC")){
+                try (ResultSet rs = ps.executeQuery()){
+                    while (rs.next()) {
+                        rows.append("<tr><td>").append(rs.getLong(1)).append("</td><td>")
+                                .append(escape(rs.getString(2))).append("</td></tr>");
+                    }
+                }
+            }
+            StringBuilder content = new StringBuilder();
+            content.append("<h2>Decks</h2>")
+                    .append("<form class='row' method='post' action='/web/decks/create'>")
+                    .append("<input type='text' name='name' placeholder='New deck name' required />")
+                    .append("<button type='submit'>Create</button></form>")
+                    .append("<table class='table'><thead><tr><th>ID</th><th>Name</th></tr></thead><tbody>")
+                    .append(rows.toString())
+                    .append("</tbody></table>");
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Decks");
+            m.put("serverMode", httpsActive?"https":"http");
+            String flash = ctx.queryParam("msg");
+            m.put("flash", flash==null?"":"<div class='toast'>"+escape(flash)+"</div>");
+            m.put("content", content.toString());
+            ctx.render("layout.html", m);
+        });
+        aj.post("/web/decks/create", ctx -> {
+            String name = ctx.formParam("name");
+            if (name != null && !name.trim().isEmpty()) {
+                try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("INSERT INTO deck(name) VALUES (?)")){
+                    ps.setString(1, name.trim()); ps.executeUpdate();
+                }
+            }
+            String msg = java.net.URLEncoder.encode("Deck created", "UTF-8");
+            ctx.redirect("/web/decks?msg="+msg);
+        });
+
+        // notes (list with deck filter and search)
+        aj.get("/web/notes", ctx -> {
+            Long deckId = null; try { deckId = Long.valueOf(ctx.queryParam("deckId")); } catch (Exception ignored) {}
+            String q = ctx.queryParam("q");
+            String sort = ctx.queryParam("sort");
+            int page = 1; try { page = Math.max(1, Integer.parseInt(String.valueOf(ctx.queryParam("page")))); } catch (Exception ignored) {}
+            int pageSize = 20; try { pageSize = Math.max(1, Math.min(100, Integer.parseInt(String.valueOf(ctx.queryParam("size"))))); } catch (Exception ignored) {}
+            StringBuilder filterBar = new StringBuilder();
+            // build deck select
+            StringBuilder deckOptions = new StringBuilder();
+            deckOptions.append("<option value=\\\"\\\"").append(deckId==null?" selected":"").append(">All Decks</option>");
+            try (PreparedStatement psd = com.memorizer.db.Database.get().prepareStatement("SELECT id,name FROM deck ORDER BY id ASC")){
+                try (ResultSet rs = psd.executeQuery()){
+                    while (rs.next()) {
+                        long did = rs.getLong(1); String dn = rs.getString(2);
+                        deckOptions.append("<option value=\\\"").append(did).append("\\\"")
+                                .append(deckId!=null && deckId==did?" selected":"").append(">")
+                                .append(escape(dn)).append("</option>");
+                    }
+                }
+            }
+            filterBar.append("<form class='row' method='get' action='/web/notes'>")
+                    .append("<select name='deckId'>"+deckOptions.toString()+"</select>")
+                    .append("<input type='text' name='q' placeholder='Search...' value='")
+                    .append(q==null?"":escape(q)).append("' />")
+                    .append("<select name='sort'>")
+                    .append("<option value='id_desc' "+ ((sort==null||"id_desc".equals(sort))?"selected":"") +">Newest</option>")
+                    .append("<option value='updated_desc' "+ ("updated_desc".equals(sort)?"selected":"") +">Recently Updated</option>")
+                    .append("<option value='front_asc' "+ ("front_asc".equals(sort)?"selected":"") +">Front A→Z</option>")
+                    .append("<option value='front_desc' "+ ("front_desc".equals(sort)?"selected":"") +">Front Z→A</option>")
+                    .append("</select>")
+                    .append("<select name='size'>")
+                    .append("<option value='10' "+ (pageSize==10?"selected":"") +">10</option>")
+                    .append("<option value='20' "+ (pageSize==20?"selected":"") +">20</option>")
+                    .append("<option value='50' "+ (pageSize==50?"selected":"") +">50</option>")
+                    .append("</select>")
+                    .append("<button type='submit'>Apply</button>")
+                    .append("<a class='btn' href='/web/notes/new'>New Note</a>")
+                    .append("</form>");
+
+            String baseSql = " FROM note n LEFT JOIN deck d ON d.id=n.deck_id";
+            String sql = "SELECT n.id, COALESCE(d.name,''), n.front, n.back, COALESCE(n.updated_at, n.created_at) AS upd" + baseSql;
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            java.util.List<String> where = new java.util.ArrayList<>();
+            if (deckId != null) { where.add("n.deck_id=?"); params.add(deckId); }
+            if (q != null && !q.trim().isEmpty()) { where.add("(LOWER(n.front) LIKE ? OR LOWER(n.back) LIKE ?)"); String like = "%"+q.toLowerCase()+"%"; params.add(like); params.add(like); }
+            if (!where.isEmpty()) sql += " WHERE " + String.join(" AND ", where);
+            // sorting
+            if ("updated_desc".equals(sort)) sql += " ORDER BY upd DESC";
+            else if ("front_asc".equals(sort)) sql += " ORDER BY LOWER(n.front) ASC";
+            else if ("front_desc".equals(sort)) sql += " ORDER BY LOWER(n.front) DESC";
+            else sql += " ORDER BY n.id DESC";
+            int limit = pageSize + 1; int offset = (page - 1) * pageSize;
+            sql += " LIMIT " + limit + " OFFSET " + offset;
+            // total count for pager
+            int totalCount = 0; int totalPages = 1;
+            try (PreparedStatement psc = com.memorizer.db.Database.get().prepareStatement("SELECT COUNT(*)" + baseSql + (!where.isEmpty()? (" WHERE " + String.join(" AND ", where)) : ""))) {
+                for (int i=0;i<params.size();i++) psc.setObject(i+1, params.get(i));
+                try (ResultSet cr = psc.executeQuery()) { if (cr.next()) totalCount = cr.getInt(1); }
+            }
+            totalPages = Math.max(1, (int)Math.ceil(totalCount / (double) pageSize));
+            StringBuilder list = new StringBuilder();
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(sql)){
+                for (int i=0;i<params.size();i++) ps.setObject(i+1, params.get(i));
+                try (ResultSet rs = ps.executeQuery()){
+                    int count = 0;
+                    while (rs.next()) {
+                        long nid = rs.getLong(1); String dname = rs.getString(2);
+                        list.append("<div class='note'><div class='note-head'><span class='deck'>")
+                                .append(escape(dname)).append("</span><span class='id'>#")
+                                .append(nid).append("</span></div><div class='front'>")
+                                .append(escape(rs.getString(3))).append("</div><div class='back'>")
+                                .append(escape(rs.getString(4))).append("</div>")
+                                .append("<div class='row' style='margin-top:6px'>")
+                                .append("<a class='btn' href='/web/notes/edit?id=").append(nid).append("'>Edit</a>")
+                                .append("<a class='btn' href='/web/notes/delete?id=").append(nid).append("' style='margin-left:6px'>Delete</a>")
+                                .append("</div></div>");
+                        count++;
+                        if (count >= pageSize) break; // keep one extra row for next page detection
+                    }
+                    boolean nextPage = false; try { nextPage = rs.next(); } catch (Exception ignored) {}
+                    StringBuilder pager = new StringBuilder();
+                    pager.append("<div class='row' style='justify-content:space-between;margin-top:10px'>");
+                    String base = "/web/notes?";
+                    java.util.List<String> qs = new java.util.ArrayList<>();
+                    if (deckId != null) qs.add("deckId="+deckId);
+                    if (q != null && !q.trim().isEmpty()) qs.add("q="+java.net.URLEncoder.encode(q, "UTF-8"));
+                    if (sort != null && !sort.trim().isEmpty()) qs.add("sort="+sort);
+                    qs.add("size="+pageSize);
+                    String common = String.join("&", qs);
+                    if (page > 1) pager.append("<a class='btn' href='").append(base).append(common).append("&page=").append(page-1).append("'>Prev</a>");
+                    else pager.append("<span></span>");
+                    pager.append("<span class='muted'>Page ").append(page).append(" of ").append(totalPages).append(" • Total ").append(totalCount).append("</span>");
+                    if (page < totalPages && nextPage) pager.append("<a class='btn' href='").append(base).append(common).append("&page=").append(page+1).append("'>Next</a>");
+                    else pager.append("<span></span>");
+                    pager.append("</div>");
+                    list.append(pager.toString());
+                }
+            }
+            String content = "<nav class='crumbs'><a href='/web'>Home</a> / Browse</nav><h2>Browse Notes</h2>" + filterBar.toString() + "<div class='note-list'>" + list.toString() + "</div>";
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Browse Notes");
+            m.put("serverMode", httpsActive?"https":"http");
+            String flash = ctx.queryParam("msg");
+            m.put("flash", flash==null?"":"<div class='toast'>"+escape(flash)+"</div>");
+            m.put("content", content);
+            ctx.render("layout.html", m);
+        });
+
+        // note create (form + submit)
+        aj.get("/web/notes/new", ctx -> {
+            StringBuilder deckOpts = new StringBuilder();
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("SELECT id,name FROM deck ORDER BY id ASC")){
+                try (ResultSet rs = ps.executeQuery()){
+                    while (rs.next()) deckOpts.append("<option value=\\\"").append(rs.getLong(1)).append("\\\">").append(escape(rs.getString(2))).append("</option>");
+                }
+            }
+            String content = new StringBuilder()
+                    .append("<nav class='crumbs'><a href='/web'>Home</a> / <a href='/web/notes'>Browse</a> / New</nav>")
+                    .append("<h2>New Note</h2>")
+                    .append("<form method='post' action='/web/notes/create' class='col'>")
+                    .append("<label>Deck</label><select name='deckId'>"+deckOpts.toString()+"</select>")
+                    .append("<label>Front</label><input name='front' required />")
+                    .append("<label>Back</label><textarea name='back' rows='3'></textarea>")
+                    .append("<label>Reading</label><input name='reading' />")
+                    .append("<label>POS</label><input name='pos' />")
+                    .append("<label>Examples</label><textarea name='examples' rows='3'></textarea>")
+                    .append("<label>Tags</label><input name='tags' />")
+                    .append("<div class='row'><button type='submit' class='btn primary'>Save</button></div>")
+                    .append("</form>").toString();
+            java.util.Map<String,Object> m = new java.util.HashMap<>(); m.put("title", "New Note"); m.put("serverMode", httpsActive?"https":"http"); m.put("flash",""); m.put("content", content); ctx.render("layout.html", m);
+        });
+        aj.post("/web/notes/create", ctx -> {
+            String front = ctx.formParam("front"); String back = ctx.formParam("back");
+            Long deckId = null; try { deckId = Long.valueOf(ctx.formParam("deckId")); } catch (Exception ignored) {}
+            String reading = ctx.formParam("reading"); String pos = ctx.formParam("pos"); String examples = ctx.formParam("examples"); String tags = ctx.formParam("tags");
+            if (front == null || front.trim().isEmpty()) { ctx.status(400).result("Front required"); return; }
+            try {
+                com.memorizer.db.Database.get().setAutoCommit(false);
+                long noteId;
+                try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(
+                        "INSERT INTO note(deck_id, front, back, reading, pos, examples, tags, created_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                    if (deckId == null) ps.setNull(1, java.sql.Types.BIGINT); else ps.setLong(1, deckId);
+                    ps.setString(2, front); ps.setString(3, back);
+                    if (reading == null) ps.setNull(4, java.sql.Types.VARCHAR); else ps.setString(4, reading);
+                    if (pos == null) ps.setNull(5, java.sql.Types.VARCHAR); else ps.setString(5, pos);
+                    if (examples == null) ps.setNull(6, java.sql.Types.CLOB); else ps.setString(6, examples);
+                    if (tags == null) ps.setNull(7, java.sql.Types.VARCHAR); else ps.setString(7, tags);
+                    ps.executeUpdate(); try (ResultSet rs = ps.getGeneratedKeys()) { rs.next(); noteId = rs.getLong(1); }
+                }
+                try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(
+                        "INSERT INTO card(note_id, due_at, interval_days, ease, reps, lapses, status, last_review_at) VALUES (?,?,NULL,2.5,0,0,0,NULL)")) {
+                    ps.setLong(1, noteId); ps.setTimestamp(2, new Timestamp(System.currentTimeMillis())); ps.executeUpdate();
+                }
+                com.memorizer.db.Database.get().commit();
+            } catch (Exception e){ try { com.memorizer.db.Database.get().rollback(); } catch (Exception ignored) {} }
+            finally { try { com.memorizer.db.Database.get().setAutoCommit(true); } catch (Exception ignored) {} }
+            String msg = java.net.URLEncoder.encode("Note created", "UTF-8");
+            String suffix = (deckId!=null? ("deckId="+deckId+"&"):"") + "msg="+msg;
+            ctx.redirect("/web/notes" + (suffix.isEmpty()?"":"?"+suffix));
+        });
+
+        // note edit
+        aj.get("/web/notes/edit", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.queryParam("id")); } catch (Exception ignored) {}
+            if (id == null) { ctx.redirect("/web/notes"); return; }
+            // Preserve list context
+            String prevDeckIdQ = ctx.queryParam("deckId");
+            String prevQQ = ctx.queryParam("q");
+            String prevSortQ = ctx.queryParam("sort");
+            String deckOpts = "";
+            Long deckId = null; String front=null, back=null, reading=null, pos=null, examples=null, tags=null;
+            try (PreparedStatement psn = com.memorizer.db.Database.get().prepareStatement("SELECT deck_id,front,back,reading,pos,examples,tags FROM note WHERE id=?")){
+                psn.setLong(1, id); try (ResultSet rs = psn.executeQuery()){ if (rs.next()){ Object dObj = rs.getObject(1); deckId = (dObj==null?null: ((Number)dObj).longValue()); front = rs.getString(2); back = rs.getString(3); reading = rs.getString(4); pos = rs.getString(5); examples = rs.getString(6); tags = rs.getString(7);} }
+            }
+            StringBuilder sb = new StringBuilder();
+            try (PreparedStatement psd = com.memorizer.db.Database.get().prepareStatement("SELECT id,name FROM deck ORDER BY id ASC")){
+                try (ResultSet rs = psd.executeQuery()){
+                    while (rs.next()) {
+                        long did = rs.getLong(1); String dn = rs.getString(2);
+                        sb.append("<option value=\\\"").append(did).append("\\\"")
+                          .append(deckId!=null && deckId==did?" selected":"").append(">")
+                          .append(escape(dn)).append("</option>");
+                    }
+                }
+            }
+            deckOpts = sb.toString();
+            String content = new StringBuilder()
+                    .append("<nav class='crumbs'><a href='/web'>Home</a> / <a href='/web/notes'>Browse</a> / Edit</nav>")
+                    .append("<h2>Edit Note #").append(id).append("</h2>")
+                    .append("<form method='post' action='/web/notes/update' class='col'>")
+                    .append("<input type='hidden' name='id' value='").append(id).append("' />")
+                    .append("<input type='hidden' name='prevDeckId' value='").append(prevDeckIdQ==null?"":escape(prevDeckIdQ)).append("' />")
+                    .append("<input type='hidden' name='prevQ' value='").append(prevQQ==null?"":escape(prevQQ)).append("' />")
+                    .append("<input type='hidden' name='prevSort' value='").append(prevSortQ==null?"":escape(prevSortQ)).append("' />")
+                    .append("<label>Deck</label><select name='deckId'>"+deckOpts+"</select>")
+                    .append("<label>Front</label><input name='front' value='").append(escape(front==null?"":front)).append("' />")
+                    .append("<label>Back</label><textarea name='back' rows='3'>").append(escape(back==null?"":back)).append("</textarea>")
+                    .append("<label>Reading</label><input name='reading' value='").append(escape(reading==null?"":reading)).append("' />")
+                    .append("<label>POS</label><input name='pos' value='").append(escape(pos==null?"":pos)).append("' />")
+                    .append("<label>Examples</label><textarea name='examples' rows='3'>").append(escape(examples==null?"":examples)).append("</textarea>")
+                    .append("<label>Tags</label><input name='tags' value='").append(escape(tags==null?"":tags)).append("' />")
+                    .append("<div class='row'><button type='submit' class='btn primary'>Save</button></div>")
+                    .append("</form>").toString();
+            java.util.Map<String,Object> m = new java.util.HashMap<>(); m.put("title","Edit Note"); m.put("serverMode", httpsActive?"https":"http"); m.put("flash",""); m.put("content", content); ctx.render("layout.html", m);
+        });
+        aj.post("/web/notes/update", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.formParam("id")); } catch (Exception ignored) {}
+            Long deckId = null; try { deckId = Long.valueOf(ctx.formParam("deckId")); } catch (Exception ignored) {}
+            String prevDeckId = ctx.formParam("prevDeckId");
+            String prevQ = ctx.formParam("prevQ");
+            String prevSort = ctx.formParam("prevSort");
+            String front = ctx.formParam("front"); String back = ctx.formParam("back"); String reading = ctx.formParam("reading"); String pos = ctx.formParam("pos"); String examples = ctx.formParam("examples"); String tags = ctx.formParam("tags");
+            if (id == null) { ctx.redirect("/web/notes"); return; }
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("UPDATE note SET deck_id=?, front=?, back=?, reading=?, pos=?, examples=?, tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")){
+                if (deckId == null) ps.setNull(1, java.sql.Types.BIGINT); else ps.setLong(1, deckId);
+                ps.setString(2, front); ps.setString(3, back);
+                if (reading == null) ps.setNull(4, java.sql.Types.VARCHAR); else ps.setString(4, reading);
+                if (pos == null) ps.setNull(5, java.sql.Types.VARCHAR); else ps.setString(5, pos);
+                if (examples == null) ps.setNull(6, java.sql.Types.CLOB); else ps.setString(6, examples);
+                if (tags == null) ps.setNull(7, java.sql.Types.VARCHAR); else ps.setString(7, tags);
+                ps.setLong(8, id);
+                ps.executeUpdate();
+            }
+            String msg = java.net.URLEncoder.encode("Note updated", "UTF-8");
+            String suffix = ((prevDeckId!=null && !prevDeckId.trim().isEmpty())? ("deckId="+prevDeckId+"&"):"") + ((prevQ!=null && !prevQ.trim().isEmpty())? ("q="+java.net.URLEncoder.encode(prevQ, "UTF-8")+"&"):"") + ((prevSort!=null && !prevSort.trim().isEmpty())? ("sort="+prevSort+"&"):"") + "msg="+msg;
+            ctx.redirect("/web/notes" + (suffix.isEmpty()?"":"?"+suffix));
+        });
+        aj.get("/web/notes/delete", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.queryParam("id")); } catch (Exception ignored) {}
+            if (id == null) { ctx.redirect("/web/notes"); return; }
+            String content = "<nav class='crumbs'><a href='/web'>Home</a> / <a href='/web/notes'>Browse</a> / Delete</nav><h2>Delete Note #"+id+"</h2><p>Are you sure?</p><form method='post' action='/web/notes/delete'><input type='hidden' name='id' value='"+id+"' /><button class='btn red' type='submit'>Delete</button> <a class='btn' href='/web/notes'>Cancel</a></form>";
+            java.util.Map<String,Object> m = new java.util.HashMap<>(); m.put("title","Delete Note"); m.put("serverMode", httpsActive?"https":"http"); m.put("flash",""); m.put("content", content); ctx.render("layout.html", m);
+        });
+        aj.post("/web/notes/delete", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.formParam("id")); } catch (Exception ignored) {}
+            String prevDeckId = ctx.formParam("prevDeckId"); String prevQ = ctx.formParam("prevQ"); String prevSort = ctx.formParam("prevSort");
+            if (id != null) {
+                try {
+                    com.memorizer.db.Database.get().setAutoCommit(false);
+                    try (PreparedStatement dc = com.memorizer.db.Database.get().prepareStatement("DELETE FROM card WHERE note_id=?")) { dc.setLong(1, id); dc.executeUpdate(); }
+                    try (PreparedStatement dn = com.memorizer.db.Database.get().prepareStatement("DELETE FROM note WHERE id=?")) { dn.setLong(1, id); dn.executeUpdate(); }
+                    com.memorizer.db.Database.get().commit();
+                } catch (Exception e){ try { com.memorizer.db.Database.get().rollback(); } catch (Exception ignored) {} }
+                finally { try { com.memorizer.db.Database.get().setAutoCommit(true); } catch (Exception ignored) {} }
+            }
+            String msg = java.net.URLEncoder.encode("Note deleted", "UTF-8");
+            String suffix = ((prevDeckId!=null && !prevDeckId.trim().isEmpty())? ("deckId="+prevDeckId+"&"):"") + ((prevQ!=null && !prevQ.trim().isEmpty())? ("q="+java.net.URLEncoder.encode(prevQ, "UTF-8")+"&"):"") + ((prevSort!=null && !prevSort.trim().isEmpty())? ("sort="+prevSort+"&"):"") + "msg="+msg;
+            ctx.redirect("/web/notes" + (suffix.isEmpty()?"":"?"+suffix));
+        });
+
+        // deck rename/delete
+        aj.get("/web/decks/rename", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.queryParam("id")); } catch (Exception ignored) {}
+            if (id == null) { ctx.redirect("/web/decks"); return; }
+            String name = null; try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("SELECT name FROM deck WHERE id=?")){
+                ps.setLong(1, id); try (ResultSet rs = ps.executeQuery()){ if (rs.next()) name = rs.getString(1); }
+            }
+            String content = "<nav class='crumbs'><a href='/web'>Home</a> / <a href='/web/decks'>Decks</a> / Rename</nav><h2>Rename Deck</h2><form method='post' action='/web/decks/rename'><input type='hidden' name='id' value='"+id+"' /><input name='name' value='"+escape(name==null?"":name)+"' /> <button class='btn primary' type='submit'>Save</button></form>";
+            java.util.Map<String,Object> m = new java.util.HashMap<>(); m.put("title","Rename Deck"); m.put("serverMode", httpsActive?"https":"http"); m.put("flash",""); m.put("content", content); ctx.render("layout.html", m);
+        });
+        aj.post("/web/decks/rename", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.formParam("id")); } catch (Exception ignored) {}
+            String name = ctx.formParam("name");
+            if (id != null && name != null && !name.trim().isEmpty()) {
+                try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("UPDATE deck SET name=? WHERE id=?")){
+                    ps.setString(1, name.trim()); ps.setLong(2, id); ps.executeUpdate();
+                }
+            }
+            String msg = java.net.URLEncoder.encode("Deck renamed", "UTF-8");
+            ctx.redirect("/web/decks?msg="+msg);
+        });
+        aj.get("/web/decks/delete", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.queryParam("id")); } catch (Exception ignored) {}
+            if (id == null) { ctx.redirect("/web/decks"); return; }
+            String content = "<nav class='crumbs'><a href='/web'>Home</a> / <a href='/web/decks'>Decks</a> / Delete</nav><h2>Delete Deck #"+id+"</h2><p>Delete this deck and all its notes/cards?</p><form method='post' action='/web/decks/delete'><input type='hidden' name='id' value='"+id+"' /><button class='btn red' type='submit'>Delete</button> <a class='btn' href='/web/decks'>Cancel</a></form>";
+            java.util.Map<String,Object> m = new java.util.HashMap<>(); m.put("title","Delete Deck"); m.put("serverMode", httpsActive?"https":"http"); m.put("flash",""); m.put("content", content); ctx.render("layout.html", m);
+        });
+        aj.post("/web/decks/delete", ctx -> {
+            Long id = null; try { id = Long.valueOf(ctx.formParam("id")); } catch (Exception ignored) {}
+            if (id != null) {
+                try {
+                    com.memorizer.db.Database.get().setAutoCommit(false);
+                    // delete cards and notes under deck
+                    java.util.List<Long> noteIds = new java.util.ArrayList<>();
+                    try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("SELECT id FROM note WHERE deck_id=?")){
+                        ps.setLong(1, id); try (ResultSet rs = ps.executeQuery()){ while (rs.next()) noteIds.add(rs.getLong(1)); }
+                    }
+                    if (!noteIds.isEmpty()){
+                        try (PreparedStatement dc = com.memorizer.db.Database.get().prepareStatement("DELETE FROM card WHERE note_id=?")){
+                            for (Long nid : noteIds){ dc.setLong(1, nid); dc.addBatch(); } dc.executeBatch();
+                        }
+                        try (PreparedStatement dn = com.memorizer.db.Database.get().prepareStatement("DELETE FROM note WHERE id=?")){
+                            for (Long nid : noteIds){ dn.setLong(1, nid); dn.addBatch(); } dn.executeBatch();
+                        }
+                    }
+                    try (PreparedStatement dd = com.memorizer.db.Database.get().prepareStatement("DELETE FROM deck WHERE id=?")){
+                        dd.setLong(1, id); dd.executeUpdate();
+                    }
+                    com.memorizer.db.Database.get().commit();
+                } catch (Exception e){ try { com.memorizer.db.Database.get().rollback(); } catch (Exception ignored) {} }
+                finally { try { com.memorizer.db.Database.get().setAutoCommit(true); } catch (Exception ignored) {} }
+            }
+            String msg = java.net.URLEncoder.encode("Deck deleted", "UTF-8");
+            ctx.redirect("/web/decks?msg="+msg);
+        });
+
+        // study
+        aj.get("/web/study", ctx -> {
+            com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
+            StringBuilder content = new StringBuilder();
+            if (study == null) {
+                content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2><p class='muted'>No cards available.</p>");
+            } else {
+                boolean reveal = "1".equals(ctx.queryParam("a"));
+                java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.currentOrNextOrFallback();
+                if (!v.isPresent()) {
+                    content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2><p class='muted'>No cards available.</p>");
+                } else {
+                    com.memorizer.service.StudyService.CardView cv = v.get();
+                    content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2><div class='study-card'>")
+                            .append("<div class='front'>").append(escape(cv.getFront())).append("</div>");
+                    if (reveal) {
+                        content.append("<div class='back'>").append(escape(cv.getBack())).append("</div>");
+                        String rp = (cv.getReading()==null?"":escape(cv.getReading()));
+                        if (cv.getPos()!=null && !cv.getPos().trim().isEmpty()) rp += " <span class='pos'>["+escape(cv.getPos())+"]</span>";
+                        content.append("<div class='sub'>"+rp+"</div>");
+                        java.util.List<String> ex = cv.getExamples();
+                        if (ex != null && !ex.isEmpty()) {
+                            content.append("<ul class='examples'>");
+                            for (String s : ex) content.append("<li>").append(escape(s)).append("</li>");
+                            content.append("</ul>");
+                        }
+                        content.append("<form method='post' action='/web/study/rate' class='row rate'>")
+                                .append("<button name='rating' value='1' class='btn red'>Again</button>")
+                                .append("<button name='rating' value='2' class='btn amber'>Hard</button>")
+                                .append("<button name='rating' value='3' class='btn green'>Good</button>")
+                                .append("<button name='rating' value='4' class='btn violet'>Easy</button>")
+                                .append("</form>");
+                    } else {
+                        content.append("<a class='btn primary' href='/web/study?a=1'>Show Answer</a>");
+                    }
+                    content.append("</div>");
+                }
+            }
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Study");
+            m.put("serverMode", httpsActive?"https":"http");
+            m.put("content", content.toString());
+            ctx.render("layout.html", m);
+        });
+        aj.post("/web/study/rate", ctx -> {
+            com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
+            String r = ctx.formParam("rating");
+            if (study != null && r != null) {
+                int val; try { val = Integer.parseInt(r.trim()); } catch (Exception e) { val = 0; }
+                com.memorizer.model.Rating rating;
+                if (val == 1) rating = com.memorizer.model.Rating.AGAIN; else if (val == 2) rating = com.memorizer.model.Rating.HARD; else if (val == 3) rating = com.memorizer.model.Rating.GOOD; else rating = com.memorizer.model.Rating.EASY;
+                study.rate(rating);
+            }
+            ctx.redirect("/web/study");
+        });
+    }
     private void registerFallbackPairing(Javalin app, String host, int port) {
         app.get("/", ctx -> ctx.redirect("/pair"));
         app.get("/api/pair/start", ctx -> {

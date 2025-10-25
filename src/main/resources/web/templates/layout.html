@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="/web/static/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="/web">Memorizer</a></div>
+    <nav class="nav">
+      <a href="/web/decks">Decks</a>
+      <a href="/web/notes">Browse</a>
+      <a href="/web/study">Study</a>
+      <button id="themeToggle" class="btn small" style="margin-left:14px">Theme</button>
+    </nav>
+  </header>
+  <main class="container">
+    {{flash}}
+    {{content}}
+  </main>
+  <footer class="foot">
+    <div>Local {{serverMode}}</div>
+  </footer>
+  <script>
+    (function(){
+      try {
+        var saved = localStorage.getItem('mzTheme');
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        if (saved === 'light' || (!saved && prefersLight)) document.body.dataset.theme = 'light';
+      } catch(e) {}
+      var btn = document.getElementById('themeToggle');
+      if (btn) {
+        btn.addEventListener('click', function(){
+          var isLight = document.body.dataset.theme === 'light';
+          if (isLight) {
+            document.body.removeAttribute('data-theme');
+            try { localStorage.setItem('mzTheme','dark'); } catch(e){}
+          } else {
+            document.body.dataset.theme = 'light';
+            try { localStorage.setItem('mzTheme','light'); } catch(e){}
+          }
+        });
+      }
+      // Active nav highlight
+      var links=document.querySelectorAll('.nav a[href^="/web/"]');
+      var path=location.pathname;
+      for (var i=0;i<links.length;i++){
+        var href=links[i].getAttribute('href');
+        if (path.indexOf(href)===0){ links[i].classList.add('active'); }
+      }
+    })();
+  </script>
+</body>
+</html>
