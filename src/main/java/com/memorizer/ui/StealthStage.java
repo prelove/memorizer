@@ -176,6 +176,7 @@ public class StealthStage extends Stage {
         // C0: Left command buttons (Edit/Add stacked). Mini only Edit.
         batchInfo.getStyleClass().add("batch-info");
         VBox leftBox = new VBox(6, btnEdit, btnAdd);
+        leftBox.setAlignment(Pos.CENTER_LEFT);
         grid.add(leftBox, col++, 0);
         GridPane.setValignment(leftBox, VPos.CENTER);
         addSeparator(col++);
@@ -341,10 +342,26 @@ public class StealthStage extends Stage {
     private void doFlip() {
         boolean isNormal = (mode == UIMode.NORMAL);
         flip.advance(isNormal);
-        // Re-render if we have a card loaded
         if (study != null && currentCardId > 0) {
             java.util.Optional<StudyService.CardView> ov = study.viewCardById(currentCardId);
-            ov.ifPresent(this::renderForFlipState);
+            if (ov.isPresent()) {
+                StudyService.CardView v = ov.get();
+                if (mode == UIMode.MINI) {
+                    String rp = buildReadingPos(v);
+                    int attempts = 0;
+                    int state = flip.getFlipCount();
+                    String text = miniTextForState(v, state, rp);
+                    while ((text == null || text.trim().isEmpty()) && attempts < 3) {
+                        flip.advance(false);
+                        state = flip.getFlipCount();
+                        text = miniTextForState(v, state, rp);
+                        attempts++;
+                    }
+                    renderMiniState(state, text);
+                } else {
+                    renderForFlipState(v);
+                }
+            }
         }
         updateExamplesVisibility();
     }
@@ -353,10 +370,7 @@ public class StealthStage extends Stage {
         int state = flip.getFlipCount();
         boolean normal = (mode == UIMode.NORMAL);
 
-        String reading = v.getReading();
-        String pos = v.getPos();
-        String rp = (reading == null ? "" : reading);
-        if (pos != null && !pos.trim().isEmpty()) rp = rp.isEmpty()? ("["+pos+"]") : (rp + "  [" + pos + "]");
+        String rp = buildReadingPos(v);
         readingPos.setText(rp);
 
         if (normal) {
@@ -368,32 +382,43 @@ public class StealthStage extends Stage {
             back.setText(showBack ? safe(v.getBack()) : "");   back.setVisible(showBack);   back.setManaged(showBack);
             readingPos.setVisible(showRP); readingPos.setManaged(showRP);
         } else {
-            // Mini unified content spans center area; no ellipsis; marquee for long text
-            String text;
-            if (state == 0) text = safe(v.getFront());
-            else if (state == 1) text = safe(v.getBack());
-            else if (state == 2) text = rp;
-            else text = examplesMgr.currentSingleLine();
-            
-            // 在 Mini 模式下，将换行符替换为空格以保持单行显示
-            if (text != null) {
-                text = text.replace("\n", " ").replace("\r", " ");
-            }
-            
-            miniContent.setText(text);
-            miniContent.setVisible(true); miniContent.setManaged(true);
-            // Only examples state scrolls horizontally
-            if (state == 3) {
-                examplesMgr.startMiniMarqueeOn(miniContent);
-            } else {
-                examplesMgr.stop();
-                miniContent.setTranslateX(0);
-            }
-            // Hide the normal centers in mini
-            front.setVisible(false); front.setManaged(false);
-            back.setVisible(false); back.setManaged(false);
-            readingPos.setVisible(false); readingPos.setManaged(false);
+            String text = miniTextForState(v, state, rp);
+            renderMiniState(state, text);
         }
+    }
+
+    private String buildReadingPos(StudyService.CardView v) {
+        String reading = v.getReading();
+        String pos = v.getPos();
+        String rp = (reading == null ? "" : reading);
+        if (pos != null && !pos.trim().isEmpty()) rp = rp.isEmpty()? ("["+pos+"]") : (rp + "  [" + pos + "]");
+        return rp;
+    }
+
+    private String miniTextForState(StudyService.CardView v, int state, String rp) {
+        String text;
+        if (state == 0) text = safe(v.getFront());
+        else if (state == 1) text = safe(v.getBack());
+        else if (state == 2) text = rp;
+        else text = examplesMgr.currentSingleLine();
+        if (text != null) text = text.replace("\n", " ").replace("\r", " ");
+        return text;
+    }
+
+    private void renderMiniState(int state, String text) {
+        if (text == null) text = "";
+        miniContent.setText(text);
+        miniContent.setVisible(true); miniContent.setManaged(true);
+        if (state == 3 && text.trim().length() > 0) {
+            examplesMgr.startMiniMarqueeOn(miniContent);
+        } else {
+            examplesMgr.stop();
+            miniContent.setTranslateX(0);
+        }
+        // Hide the normal centers in mini
+        front.setVisible(false); front.setManaged(false);
+        back.setVisible(false); back.setManaged(false);
+        readingPos.setVisible(false); readingPos.setManaged(false);
     }
 
     private void updateExamplesVisibility() {
@@ -495,14 +520,33 @@ public class StealthStage extends Stage {
 
     private static String safe(String s) { return s == null ? "" : s; }
 
-    /** Clamp a wrapping label to two lines using a simple rectangle clip. */
+    /** Clamp a wrapping label to two lines using a rectangle clip sized from actual font metrics. */
     private void clampTwoLines(Label lbl) {
         if (lbl == null) return;
-        double lineH = (lbl.getFont() != null ? lbl.getFont().getSize() : 16.0) + 4.0; // approx line height
-        double h = Math.max(28.0, lineH * 2.0);
         javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
         clip.widthProperty().bind(lbl.widthProperty());
-        clip.setHeight(h);
+        // Compute a safer line height from a sample text in the current font
+        java.util.function.Function<javafx.scene.text.Font, Double> measure = (font) -> {
+            try {
+                javafx.scene.text.Text t = new javafx.scene.text.Text("AgypQ");
+                t.setFont(font);
+                // Use layout bounds height as a good approximation
+                double lh = t.getLayoutBounds().getHeight();
+                if (lh <= 0) lh = (font != null ? font.getSize() * 1.6 : 24.0);
+                return lh;
+            } catch (Throwable ignore) {
+                return (font != null ? font.getSize() * 1.6 : 24.0);
+            }
+        };
+        double lh = measure.apply(lbl.getFont());
+        double height = Math.max(36.0, (lh * 2.0) + 8.0);
+        clip.setHeight(height);
+        // Recalculate on font change to avoid cutting when theme/size changes
+        lbl.fontProperty().addListener((obs, o, n) -> {
+            double nl = measure.apply(n);
+            double nh = Math.max(36.0, (nl * 2.0) + 8.0);
+            clip.setHeight(nh);
+        });
         lbl.setClip(clip);
     }
 

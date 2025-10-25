@@ -726,6 +726,31 @@ public final class WebServerManager {
             }
         });
 
+        // Delete card (and dependent rows) [fallback]
+        app.post("/api/cards/delete", ctx -> {
+            Map<?,?> body = ctx.bodyAsClass(Map.class);
+            Long cardId = toLong(body == null ? null : body.get("cardId"));
+            if (cardId == null) { ctx.status(400).json(err("invalid_card_id")); return; }
+            try {
+                com.memorizer.db.Database.get().setAutoCommit(false);
+                try (PreparedStatement ps1 = com.memorizer.db.Database.get().prepareStatement("DELETE FROM review_log WHERE card_id=?");
+                     PreparedStatement ps2 = com.memorizer.db.Database.get().prepareStatement("DELETE FROM study_plan WHERE card_id=?");
+                     PreparedStatement ps3 = com.memorizer.db.Database.get().prepareStatement("DELETE FROM card WHERE id=?")) {
+                    ps1.setLong(1, cardId); ps1.executeUpdate();
+                    ps2.setLong(1, cardId); ps2.executeUpdate();
+                    ps3.setLong(1, cardId); int rows = ps3.executeUpdate();
+                    com.memorizer.db.Database.get().commit();
+                    if (rows == 0) ctx.status(404).json(err("not_found"));
+                    else ctx.json(ok(rows));
+                }
+            } catch (Exception e) {
+                try { com.memorizer.db.Database.get().rollback(); } catch (Exception ignored) {}
+                ctx.status(500).json(err("delete_failed"));
+            } finally {
+                try { com.memorizer.db.Database.get().setAutoCommit(true); } catch (Exception ignored) {}
+            }
+        });
+
         // Batch note update with LWW (updatedAt)
         app.post("/api/notes/update", ctx -> {
             List<?> arr = ctx.bodyAsClass(List.class);

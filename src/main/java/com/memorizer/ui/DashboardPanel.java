@@ -49,9 +49,15 @@ public class DashboardPanel {
     
     // Task progress indicator (rectangles) + fallback bar
     private HBox taskProgressContainer;
+    private HBox taskProgressRow;
     private HBox taskProgressBarRow;
     private final ProgressBar taskProgressBar = new ProgressBar(0);
     private final Label taskProgressText = new Label("0/0");
+    private final VBox taskProgressStatusStack = new VBox(1);
+    private final VBox taskProgressDeckStack = new VBox(1);
+    private final VBox taskProgressStatusStackBar = new VBox(1);
+    private final VBox taskProgressDeckStackBar = new VBox(1);
+    private final Label taskProgressTitleCount = new Label("");
 
     public DashboardPanel(StudyService studyService, Scheduler scheduler) {
         this.studyService = studyService;
@@ -67,7 +73,7 @@ public class DashboardPanel {
         HBox mainContainer = new HBox(20);
         mainContainer.setPadding(new Insets(16));
         
-        // Left side: Summary statistics
+        // Left side: Summary statistics (fixed width)
         VBox summarySection = createSummarySection();
         summarySection.setStyle("-fx-background-color: #f0f0f0; -fx-background-radius: 8px; -fx-padding: 15px;");
         
@@ -77,10 +83,11 @@ public class DashboardPanel {
         // Add sections to main container
         mainContainer.getChildren().addAll(summarySection, chartsSection);
         
-        // Set proportional widths (40% for summary, 60% for charts)
+        // Set fixed width for summary (prevent squeeze) and make charts flexible
         HBox.setHgrow(summarySection, javafx.scene.layout.Priority.NEVER);
         HBox.setHgrow(chartsSection, javafx.scene.layout.Priority.ALWAYS);
-        summarySection.setPrefWidth(300);
+        summarySection.setMinWidth(320);
+        summarySection.setPrefWidth(320);
         
         return mainContainer;
     }
@@ -167,19 +174,45 @@ public class DashboardPanel {
         // Add task progress indicator
         Label taskProgressTitle = new Label("Today's Task Progress");
         taskProgressTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        taskProgressTitleCount.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #333;");
+        HBox titleRow = new HBox(8, taskProgressTitle);
+        javafx.scene.layout.Region titleSpacer = new javafx.scene.layout.Region();
+        HBox.setHgrow(titleSpacer, javafx.scene.layout.Priority.ALWAYS);
+        titleRow.getChildren().addAll(titleSpacer, taskProgressTitleCount);
+        Label taskProgressLegend = new Label("Legend: Done (green) • Pending (orange) • Queued (gray). Hover or click items.");
+        taskProgressLegend.setStyle("-fx-font-size: 12px; -fx-text-fill: #666;");
         taskProgressContainer = new HBox(2);
         taskProgressContainer.setAlignment(Pos.CENTER_LEFT);
         taskProgressContainer.setPrefHeight(30);
+        taskProgressText.setStyle("-fx-font-weight: bold;");
+        // Mini stacked bar showing proportions (done/pending/queued)
+        taskProgressStatusStack.setPrefWidth(10);
+        taskProgressStatusStack.setMaxHeight(22);
+        taskProgressStatusStack.setAlignment(Pos.BOTTOM_CENTER);
+        taskProgressDeckStack.setPrefWidth(10);
+        taskProgressDeckStack.setMaxHeight(22);
+        taskProgressDeckStack.setAlignment(Pos.BOTTOM_CENTER);
+        taskProgressStatusStackBar.setPrefWidth(10);
+        taskProgressStatusStackBar.setMaxHeight(22);
+        taskProgressStatusStackBar.setAlignment(Pos.BOTTOM_CENTER);
+        taskProgressDeckStackBar.setPrefWidth(10);
+        taskProgressDeckStackBar.setMaxHeight(22);
+        taskProgressDeckStackBar.setAlignment(Pos.BOTTOM_CENTER);
+        // Row for small totals: indicators + "x/y" + mini stack
+        HBox miniStacksRow = new HBox(4, taskProgressStatusStack, taskProgressDeckStack);
+        taskProgressRow = new HBox(8, taskProgressContainer, taskProgressText, miniStacksRow);
+        taskProgressRow.setAlignment(Pos.CENTER_LEFT);
 
         // Fallback progress bar row for large totals
         taskProgressBar.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(taskProgressBar, javafx.scene.layout.Priority.ALWAYS);
-        taskProgressBarRow = new HBox(8, taskProgressBar, taskProgressText);
+        HBox miniStacksBar = new HBox(4, taskProgressStatusStackBar, taskProgressDeckStackBar);
+        taskProgressBarRow = new HBox(8, taskProgressBar, taskProgressText, miniStacksBar);
         taskProgressBarRow.setAlignment(Pos.CENTER_LEFT);
         taskProgressBarRow.setVisible(false);
         taskProgressBarRow.setManaged(false);
 
-        chartsContainer.getChildren().addAll(taskProgressTitle, taskProgressContainer, taskProgressBarRow);
+        chartsContainer.getChildren().addAll(titleRow, taskProgressLegend, taskProgressRow, taskProgressBarRow);
         
         return chartsContainer;
     }
@@ -349,28 +382,252 @@ public class DashboardPanel {
             double p = (totalTasks == 0) ? 0.0 : Math.min(1.0, doneTasks / (double) totalTasks);
             taskProgressBar.setProgress(p);
             taskProgressText.setText(doneTasks + "/" + totalTasks);
+            taskProgressTitleCount.setText(doneTasks + "/" + totalTasks);
             Tooltip.install(taskProgressBarRow, new Tooltip("Done: " + doneTasks + ", Pending: " + pendingTasks));
+            taskProgressRow.setVisible(false);
+            taskProgressRow.setManaged(false);
+            taskProgressBarRow.setVisible(true);
+            taskProgressBarRow.setManaged(true);
+            updateStatusStacks(doneTasks, pendingTasks, Math.max(0, totalTasks - doneTasks - pendingTasks));
+            updateDeckStacks();
             return;
         }
         
-        // Create progress indicators
-        for (int i = 0; i < totalTasks; i++) {
+        // Build indicators using today's plan list for richer hover info
+        java.util.List<com.memorizer.service.PlanService.PlanRow> rows = studyService.planListToday();
+        taskProgressText.setText(doneTasks + "/" + totalTasks);
+        taskProgressTitleCount.setText(doneTasks + "/" + totalTasks);
+        for (int i = 0; i < rows.size(); i++) {
+            com.memorizer.service.PlanService.PlanRow row = rows.get(i);
             Region indicator = new Region();
-            indicator.setPrefSize(10, 20);
+            double height = Math.max(4.0, 22.0 * masteryFor(row.getCardId()));
+            indicator.setPrefSize(10, height);
             indicator.setStyle("-fx-background-color: #cccccc; -fx-background-radius: 2;");
-            
-            // Color coding:
-            // Gray - Not started
-            // Green - Done
-            // Orange - Pending/Current
-            if (i < doneTasks) {
-                indicator.setStyle("-fx-background-color: #4CAF50; -fx-background-radius: 2;"); // Green
-            } else if (i < doneTasks + pendingTasks) {
-                indicator.setStyle("-fx-background-color: #FF9800; -fx-background-radius: 2;"); // Orange
+
+            int st = row.getStatus();
+            if (st == 1) { // done
+                indicator.setStyle("-fx-background-color: #4CAF50; -fx-background-radius: 2;");
+            } else if (st == 0) { // pending
+                indicator.setStyle("-fx-background-color: #FF9800; -fx-background-radius: 2;");
+            } else { // rolled/skipped
+                indicator.setStyle("-fx-background-color: #BDBDBD; -fx-background-radius: 2;");
             }
-            Tooltip.install(indicator, new Tooltip((i < doneTasks) ? "Done" : (i < doneTasks + pendingTasks ? "Pending" : "Queued")));
+
+            long cardId = row.getCardId();
+            String base = "Deck: " + safe(row.getDeckName()) + "\n" + "Front: " + summarize(row.getFront()) + "\n(click to open)";
+            Tooltip tp = new Tooltip(base);
+            // Lazy-enrich tooltip on first hover
+            indicator.setOnMouseEntered(e -> enrichTooltipAsync(tp, cardId));
+            indicator.setOnMouseClicked(e -> openStudyForCard(cardId));
+            Tooltip.install(indicator, tp);
             taskProgressContainer.getChildren().add(indicator);
         }
+        taskProgressRow.setVisible(true);
+        taskProgressRow.setManaged(true);
+        taskProgressBarRow.setVisible(false);
+        taskProgressBarRow.setManaged(false);
+        updateStatusStacks(doneTasks, pendingTasks, Math.max(0, totalTasks - doneTasks - pendingTasks));
+        updateDeckStacks();
+    }
+
+    // ---- Helpers for progress hover ----
+    private static String safe(String s) { return s == null ? "" : s; }
+
+    private void enrichTooltipAsync(Tooltip tp, long cardId) {
+        // Avoid blocking UI: fetch details on a background thread, then apply to tooltip
+        new Thread(() -> {
+            String text = buildTooltipText(cardId);
+            if (text == null || text.trim().isEmpty()) return;
+            javafx.application.Platform.runLater(() -> tp.setText(text));
+        }, "tp-enrich").start();
+    }
+
+    private String buildTooltipText(long cardId) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            java.util.Optional<com.memorizer.model.Note> on = new com.memorizer.db.NoteRepository().findByCardId(cardId);
+            if (on.isPresent()) {
+                com.memorizer.model.Note n = on.get();
+                String deck = "";
+                try { if (n.deckId != null) deck = new com.memorizer.db.DeckRepository().findNameById(n.deckId); } catch (Exception ignored) {}
+                if (!deck.isEmpty()) sb.append("Deck: ").append(deck).append('\n');
+                sb.append("Front: ").append(summarize(n.front)).append('\n');
+                if (n.reading != null && !n.reading.trim().isEmpty()) sb.append("Reading: ").append(n.reading).append('\n');
+                if (n.pos != null && !n.pos.trim().isEmpty()) sb.append("POS: ").append(n.pos).append('\n');
+            }
+        } catch (Exception ignored) {}
+
+        // Mastery status (previous -> current)
+        String mastery = masteryLine(cardId);
+        if (!mastery.isEmpty()) sb.append(mastery).append('\n');
+
+        // Recent review logs
+        java.util.List<String> recents = recentReviewsOf(cardId, 5);
+        if (!recents.isEmpty()) {
+            sb.append("Reviews:\n");
+            for (String r : recents) sb.append("  • ").append(r).append('\n');
+        }
+        return sb.toString().trim();
+    }
+
+    private void openStudyForCard(long cardId) {
+        try {
+            com.memorizer.ui.MainStage main = com.memorizer.app.AppContext.getMain();
+            if (main != null) {
+                javafx.application.Platform.runLater(() -> main.showCardInStudy(cardId));
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private String summarize(String s) {
+        if (s == null) return "";
+        String t = s.replace('\n',' ').trim();
+        if (t.length() <= 120) return t;
+        return t.substring(0, 117) + "...";
+    }
+
+    private java.util.List<String> recentReviewsOf(long cardId, int limit) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        String sql = "SELECT reviewed_at, rating, latency_ms FROM review_log WHERE card_id=? ORDER BY reviewed_at DESC LIMIT ?";
+        try (java.sql.PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(sql)) {
+            ps.setLong(1, cardId);
+            ps.setInt(2, Math.max(1, limit));
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.sql.Timestamp ts = rs.getTimestamp(1);
+                    int rating = rs.getInt(2);
+                    Object latObj = rs.getObject(3);
+                    Integer lat = (latObj == null ? null : ((Number)latObj).intValue());
+                    String tsStr = (ts == null ? "" : new java.text.SimpleDateFormat("MM-dd HH:mm").format(ts));
+                    String r = tsStr + "  rating=" + rating + (lat == null ? "" : ("  " + lat + "ms"));
+                    out.add(r);
+                }
+            }
+        } catch (Exception ignored) {}
+        return out;
+    }
+
+    private String masteryLine(long cardId) {
+        double curr = masteryFor(cardId);
+        Double prev = lastPrevMastery(cardId);
+        String currPct = String.format("%.0f%%", curr * 100.0);
+        if (prev == null) return "Mastery: " + currPct;
+        String prevPct = String.format("%.0f%%", prev * 100.0);
+        return "Mastery: " + prevPct + " → " + currPct;
+    }
+
+    private Double lastPrevMastery(long cardId) {
+        String sql = "SELECT prev_interval FROM review_log WHERE card_id=? ORDER BY reviewed_at DESC LIMIT 1";
+        try (java.sql.PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(sql)) {
+            ps.setLong(1, cardId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Object ivl = rs.getObject(1);
+                    if (ivl == null) return null;
+                    double d = ((Number)ivl).doubleValue();
+                    return normalizeInterval(d);
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private double masteryFor(long cardId) {
+        String sql = "SELECT interval_days, ease, reps, status FROM card WHERE id=?";
+        try (java.sql.PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(sql)) {
+            ps.setLong(1, cardId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Object ivlObj = rs.getObject(1);
+                    Double ivl = (ivlObj == null ? null : ((Number)ivlObj).doubleValue());
+                    double ease = rs.getDouble(2);
+                    int reps = rs.getInt(3);
+                    int status = rs.getInt(4);
+                    double mIvl = (ivl == null ? 0.1 : normalizeInterval(ivl));
+                    double mReps = clamp01(reps / 10.0);
+                    double mEase = clamp01((ease - 1.3) / (3.0 - 1.3));
+                    double base = 0.15 + 0.55 * mIvl + 0.2 * mReps + 0.1 * mEase;
+                    if (status == 0) base = Math.min(base, 0.6); // new cards shouldn't be shown as 100%
+                    return clamp01(base);
+                }
+            }
+        } catch (Exception ignored) {}
+        return 0.2;
+    }
+
+    private double normalizeInterval(double days) {
+        // Normalize interval to ~0..1 over a 30-day window (tunable)
+        return clamp01(days / 30.0);
+    }
+
+    private double clamp01(double v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+
+    /** Update the mini stacked bars (done/pending/queued) for both rows. */
+    private void updateStatusStacks(int done, int pending, int queued) {
+        int total = Math.max(1, done + pending + queued);
+        taskProgressStatusStack.getChildren().clear();
+        taskProgressStatusStackBar.getChildren().clear();
+        // Heights proportional to counts (cap minimum for visibility)
+        double maxH = 22.0;
+        double hDone = Math.max(2.0, maxH * (done / (double) total));
+        double hPend = Math.max(2.0, maxH * (pending / (double) total));
+        double hQueue = Math.max(2.0, maxH * (queued / (double) total));
+        Region rDone = new Region(); rDone.setPrefSize(10, hDone); rDone.setStyle("-fx-background-color:#4CAF50;");
+        Region rPend = new Region(); rPend.setPrefSize(10, hPend); rPend.setStyle("-fx-background-color:#FF9800;");
+        Region rQueue = new Region(); rQueue.setPrefSize(10, hQueue); rQueue.setStyle("-fx-background-color:#CCCCCC;");
+        Tooltip.install(rDone, new Tooltip("Done: " + done));
+        Tooltip.install(rPend, new Tooltip("Pending: " + pending));
+        Tooltip.install(rQueue, new Tooltip("Queued: " + queued));
+        taskProgressStatusStack.getChildren().addAll(rQueue, rPend, rDone);
+        Region rDone2 = new Region(); rDone2.setPrefSize(10, hDone); rDone2.setStyle("-fx-background-color:#4CAF50;");
+        Region rPend2 = new Region(); rPend2.setPrefSize(10, hPend); rPend2.setStyle("-fx-background-color:#FF9800;");
+        Region rQueue2 = new Region(); rQueue2.setPrefSize(10, hQueue); rQueue2.setStyle("-fx-background-color:#CCCCCC;");
+        Tooltip.install(rDone2, new Tooltip("Done: " + done));
+        Tooltip.install(rPend2, new Tooltip("Pending: " + pending));
+        Tooltip.install(rQueue2, new Tooltip("Queued: " + queued));
+        taskProgressStatusStackBar.getChildren().addAll(rQueue2, rPend2, rDone2);
+    }
+
+    /** Update the deck composition stacked bars using per-deck counts and stable colors. */
+    private void updateDeckStacks() {
+        taskProgressDeckStack.getChildren().clear();
+        taskProgressDeckStackBar.getChildren().clear();
+        java.util.List<com.memorizer.service.PlanService.DeckShare> shares = new com.memorizer.service.PlanService().deckSharesToday();
+        int total = shares.stream().mapToInt(s -> s.count).sum();
+        if (total <= 0) return;
+        double maxH = 22.0;
+        for (int i = shares.size() - 1; i >= 0; i--) { // bottom-up
+            com.memorizer.service.PlanService.DeckShare s = shares.get(i);
+            double h = Math.max(2.0, maxH * (s.count / (double) total));
+            Region r = new Region();
+            r.setPrefSize(10, h);
+            r.setStyle("-fx-background-color:" + deckColorFor(s.deckName) + ";");
+            Tooltip.install(r, new Tooltip(s.deckName + ": " + s.count));
+            taskProgressDeckStack.getChildren().add(r);
+            Region r2 = new Region();
+            r2.setPrefSize(10, h);
+            r2.setStyle("-fx-background-color:" + deckColorFor(s.deckName) + ";");
+            Tooltip.install(r2, new Tooltip(s.deckName + ": " + s.count));
+            taskProgressDeckStackBar.getChildren().add(r2);
+        }
+    }
+
+    /** Map deck name to a stable, visually distinct color. */
+    private String deckColorFor(String name) {
+        if (name == null) name = "(No Deck)";
+        int hash = Math.abs(name.hashCode());
+        // Pick from a small palette to keep colors consistent and high-contrast
+        String[] palette = new String[]{
+                "#1f77b4", // blue
+                "#ff7f0e", // orange
+                "#2ca02c", // green
+                "#d62728", // red
+                "#9467bd", // purple
+                "#8c564b", // brown
+                "#e377c2", // pink
+                "#17becf"  // cyan
+        };
+        return palette[hash % palette.length];
     }
 
     /**

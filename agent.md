@@ -1,6 +1,6 @@
-# Memorizer — Agent Task Plan (Stage A UI & Scheduler Refinement)
+# Memorizer — Agent Plan (Current Status + Next Tasks)
 
-This file is the **authoritative task list and spec** for improving the stealth banner window and scheduler. It is written for an assistant agent (e.g., Codex) to execute **step by step**. Please **follow the order** and check off acceptance criteria before moving to the next task.
+This document reflects the current project state and the focused next tasks. Completed items are recorded for reference and will not be re‑done. Only unfinished, actionable work remains in the Next Tasks section.
 
 ---
 
@@ -10,14 +10,8 @@ This file is the **authoritative task list and spec** for improving the stealth 
 - **Packaging**: fat-jar
 - **OS targets**: Windows (primary), macOS (secondary), Linux (best-effort)
 - **DB**: H2 1.4.x (embedded file), Flyway for migrations
-- **Project goal**: Distraction-minimized micro-learning with a stealth banner (two modes: Normal/Mini) + SRS scheduling.
-- **Current status**: App runs; DB + Flyway + H2 console OK; scheduler shows a banner; batch learning implemented; basic tray controls implemented.
-- **Pain points to fix immediately**:
-  - New ticks can overlap while the banner is still showing.
-  - Banner appears on the taskbar (should be hidden).
-  - Banner placement/width alignment is weak (large empty space; text off-center).
-  - Normal/Mini mode skeleton needs to be solidified.
-  - Properties must be consolidated to a single clear version.
+- **Project goal**: Distraction‑minimized micro‑learning with a Stealth banner (Normal/Mini) + SRS planning + PWA companion.
+- **Current status**: Desktop app is stable; DB + Flyway + H2 console OK; serialized scheduler; Stealth Drawer Normal/Mini implemented; pairing server + APIs operational; PWA project present and served when built.
 
 ---
 
@@ -58,73 +52,19 @@ This file is the **authoritative task list and spec** for improving the stealth 
 
 ---
 
-## 2) Configuration — **Single Source of Truth**
+## 2) Configuration — Single Source of Truth (Completed)
 
-Replace `application.properties` with the following keys and comments (keep values as-is unless told otherwise):
-
-```properties
-# ======================
-# UI mode & size
-# ======================
-app.ui.mode=normal                     # normal | mini
-
-# Normal mode geometry
-app.window.stealth.height=64           # banner height (px)
-app.window.stealth.width-fraction=0.98 # width as fraction of visual screen width (0~1)
-
-# Mini mode geometry
-app.window.mini.height=40
-app.window.mini.width-fraction=0.50
-
-# Visibility
-app.window.opacity=0.90                # window opacity (0~1)
-app.window.hide-from-taskbar=true      # hide banner from taskbar via invisible owner
-app.window.overlay-taskbar=false       # try overlaying taskbar region (fallback: snap to top edge)
-
-# Examples (S3 will use these)
-app.ui.examples.autoroll=true
-app.ui.examples.roll-interval-ms=2200
-app.ui.examples.max-lines=3
-
-# Today goal (for right-side progress)
-app.study.daily-target=50
-
-# ======================
-# Scheduler (micro-reminders)
-# ======================
-app.study.batch-size=3                 # N cards per banner session
-app.study.min-interval-minutes=20      # next tick random delay: min minutes
-app.study.max-interval-minutes=60      # next tick random delay: max minutes
-app.study.defer-when-busy-minutes=3    # if banner active, defer next tick by N minutes
-
-# Queue & snooze
-app.study.force-show-when-empty=true   # allow fallback when no due/new
-app.study.snooze-on-hide-enabled=true  # hide (X/ESC) pushes current card
-app.study.snooze-on-hide-minutes=10    # push minutes on hide
-app.study.snooze-minutes=10            # tray Snooze (global tick defer)
-
-# ======================
-# Database
-# ======================
-app.db.type=h2
-app.db.path=./data/memo
-
-# H2 console
-app.h2.console.enabled=true
-app.h2.console.port=8082
-app.h2.console.allow-others=false
-```
-
-**Acceptance**: app reads only these keys; no duplicates remain.
+- Runtime preferences persist to `data/prefs.properties` (e.g., `app.ui.mode`, theme, scheduler settings).
+- `src/main/resources/application.properties` only carries DB/H2 console keys.
+- No duplicate config keys remain.
 
 ---
 
-## 3) TASK S1 — Stabilize core behavior (must pass before UI polish)
+## 3) S1 — Core Behavior (Completed)
 
-Status: DONE (Stage A)
-Notes:
-- Ticks defer while banner active; single banner enforced.
-- Invisible owner hides banner from taskbar; position logic implemented.
+- Ticks defer while banner is active; single banner enforced.
+- Invisible owner hides banner from taskbar; always‑on‑top; transparent scene.
+- Placement: snaps relative to taskbar; overlay option supported.
 
 ### S1.1 Serialize scheduler when banner active
 **Goal**: Never spawn a second banner during an active session. If a tick occurs while the banner is showing/learning, **defer** by `app.study.defer-when-busy-minutes`.
@@ -210,11 +150,10 @@ Notes:
 
 ---
 
-## 4) TASK S2 — Dual-mode UI skeleton (Normal/Mini)
+## 4) S2 — Dual‑mode UI (Completed)
 
-Status: DONE (Stage A)
-Notes:
-- `UIMode` toggles with keyboard `M` and via tray “Mode → Normal/Mini”.
+- Normal/Mini layouts implemented with `M` toggle and tray menu.
+- Separate answer clusters (Normal labeled, Mini numeric) without reparenting.
 
 **Goal**: Two switchable layouts; keyboard `M` toggles; tray menu has “Mode → Normal/Mini”.
 
@@ -234,12 +173,9 @@ Notes:
 
 ---
 
-## 5) TASK S3 — Content enrichment (DTO + examples roller + today progress)
+## 5) S3 — Content Enrichment (Completed)
 
-Status: DONE (Stage A)
-Notes:
-- `CardView` assembler adds reading/pos/examples/tags/deck name.
-- Examples roller added with autoroll + hover pause; today progress wired.
+- `CardView` includes reading/pos/examples/tags/deck; examples roller; today progress bar with overlay text.
 
 **Goal**: Fill the banner with richer info but still subtle.
 
@@ -261,11 +197,9 @@ Notes:
 
 ---
 
-## 6) TASK S4 — Preferences persistence (optional in A)
+## 6) S4 — Preferences Persistence (Completed)
 
-Status: DONE (Stage A)
-Notes:
-- `app.ui.mode` persisted to `data/prefs.properties`; loaded on startup; no duplicate keys.
+- `app.ui.mode` and theme persist; reloaded on startup.
 
 **Goal**: Persist UI mode and key preferences across sessions.
 
@@ -281,16 +215,10 @@ Notes:
 
 ---
 
-## 7) TASK B (Next stage after A) — Study modes & plan table
+## 7) Study Plan (Completed)
 
-**Scope (design-ready, not to implement in S1–S4)**:
-- **Fixed Mode**: daily task pool `study_plan` = DUE + LEECH + NEW(≤limit) + carryover.
-- **Challenge Mode**: after clearing fixed tasks, prompt to add a batch of NEW (configurable size).
-- Add Flyway `V2__study_plan.sql` with columns: `plan_date, card_id, deck_id, kind(0=DUE,1=LEECH,2=NEW,3=CHALLENGE), status(0=PENDING,1=DONE,2=ROLLED,3=SKIPPED), order_no, created_at, updated_at` + indexes.
-- Implement `PlanService` with: `buildToday()`, `appendChallengeBatch()`, `nextFromPlan()`, `markDone()`.
-
-**Acceptance** (later):
-- Daily pool is deterministic; unfinished items carry over; challenge batches append and are tracked.
+- Migration `V2__study_plan.sql` and `PlanService` implemented (buildToday, appendChallengeBatch, nextFromPlan, markDone, counts, listToday).
+- Deck filter integrated in queries; carryover and challenge kinds supported.
 
 
 ---
@@ -330,10 +258,19 @@ Notes:
 
 ---
 
-## 11) Deliverables per Task
+## 11) Next Tasks (Unfinished Only)
 
-- **S1**: PR with Scheduler serialization, hidden taskbar owner, positioning, readable labels, and properties clean-up.
-- **S2**: PR with dual-mode UI skeleton + tray toggle.
-- **S3**: PR with CardView assembler, examples roller, today progress wired.
-- **S4**: PR with preference persistence for UI mode.
-- Update `CHANGELOG.md` and this `agent.md` (check off tasks and note decisions).
+- Desktop API parity
+  - [Done] `POST /api/cards/delete` added to delete by `cardId` with dependent rows cleanup.
+- Study UX options
+  - Preference to hide POS pre‑flip (toggle in Preferences; default current behavior maintained).
+- Pairing UX polish
+  - Add illustrated steps/images for iOS/Android on `/pair` and in desktop “Connect” panel to guide TLS/permissions.
+- Build/CI hygiene
+  - Verify `settings.xml` uses Maven Central in CI; remove reliance on local Nexus mirrors; document CI commands in README.
+- Tests
+  - Add JUnit 5 tests: PlanService deck filter and counts; Stealth flip‑cycle states (Normal 0/1/2; Mini 0/1/2/3); repository insert/update paths; minimal API endpoint tests where feasible.
+- Optional/Stretch
+  - Persist per‑deck “challenge last size” hint (e.g., `app.study.challenge.<deckId>.lastSize`).
+
+All prior Stage A/B items are complete and should not be re‑implemented.

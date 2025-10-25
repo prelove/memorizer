@@ -182,6 +182,15 @@ public class MainStage extends Stage {
         studyStage.showAndFocus();
     }
 
+    /** Open the Study window and show a specific card id. */
+    public void showCardInStudy(long cardId) {
+        if (studyStage == null) {
+            studyStage = new StudyStage(studyService);
+        }
+        studyStage.showCard(cardId);
+        studyStage.showAndFocus();
+    }
+
     public void refreshModeIndicatorInStudy() {
         if (studyStage != null) {
             studyStage.refreshModeIndicatorFromConfig();

@@ -1,48 +1,166 @@
-# Memorizer (Desktop + Stealth Banner)
+# Memorizer (Desktop + PWA)
 
-Memorizer is a distraction‑minimized spaced‑repetition helper with a taskbar‑like Stealth banner (Normal/Mini) for quick reviews and a Main window for dashboards, planning, and manual data entry.
+Memorizer is a comprehensive spaced‑repetition learning system featuring a distraction‑minimized desktop application with a Stealth banner (Normal/Mini) for quick reviews, a main window for dashboards and planning, and a companion Progressive Web App (PWA) for mobile access with seamless data synchronization.
 
 ## Features
 
-- Stealth Banner (Normal/Mini) with Dark/Light theme
-- Front/Back/Reading/Pos/Examples flip cycle (Front → Back → All → Front)
-- Four rating buttons (Again/Hard/Good/Easy) with clear tints in Dark and pastels in Light
-- Progress bar with Today x/target overlay (capped to target)
-- Deck filter (All Decks or specific deck id) shared with PWA via DB/Config
-- Manual data entry on Desktop (New Deck, New Entry) in addition to Excel import
-- Tray controls and serialized reminders (no overlapping banners)
-- Dashboard with statistics charts and task progress indicator
-- Application icons for all windows
-- Improved window sizing and layout
+### Desktop Application
+- **Stealth Banner** (Normal/Mini) with Dark/Light theme and taskbar-aware positioning
+- **Advanced flip cycle**: Front → Back → All (Front+Back+Reading/Pos+Examples) → Front
+- **Four rating buttons** (Again/Hard/Good/Easy) with clear tints in Dark and pastels in Light
+- **Progress tracking** with Today x/target overlay (capped to target) and visual indicators
+- **Deck management** with filter (All Decks or specific deck id) shared with PWA via DB
+- **Manual data entry** (New Deck, New Entry) with Excel import/export capabilities
+- **Tray controls** and serialized reminders (no overlapping banners)
+- **Dashboard** with comprehensive statistics charts and task progress indicators
+- **Multi-monitor support** with automatic positioning and taskbar overlay options
+- **Preferences system** with runtime configuration persistence
+
+### Web Interface
+- **Browser-based access** when sync server is enabled (default port 7070/7071)
+- **Full desktop functionality** including deck management, browsing, and study
+- **Server-side rendering** with responsive design and dark/light theme support
+- **Direct database access** without mobile pairing requirements
+- **Cross-platform compatibility** accessible from any modern browser
+
+### PWA (Progressive Web App)
+- **Mobile-friendly interface** for on-the-go learning
+- **Offline capabilities** with local data caching
+- **Real-time synchronization** with desktop application via REST API
+- **QR code pairing** for secure desktop-mobile connection
+- **Responsive design** with dark/light theme support
+- **Touch-optimized controls** for mobile learning experience
+
+### SRS Algorithm
+- **Spaced repetition engine** with configurable intervals
+- **Advanced scheduling** with batch processing and snooze options
+- **Performance tracking** with detailed review history
+- **Adaptive difficulty** based on user ratings and response times
 
 ## Build & Run
 
-Prereqs: Java 8, Maven
+### Prerequisites
+- Java 8 JDK
+- Maven 3.x
+- Node.js 16+ (for PWA development)
 
-1. mvn clean package
-2. java -jar target/memorizer-0.3.0-shaded.jar
+### Desktop Application
 
-Note: If Maven attempts to use a local Nexus, update `settings.xml` to point to Maven Central.
+1. Clean and package the project:
+   ```bash
+   mvn clean package
+   ```
+2. Run the application:
+   ```bash
+   java -jar target/memorizer-0.5.0-shaded.jar
+   ```
 
-## Configuration (application.properties)
+### PWA Development
+
+1. Navigate to the PWA directory:
+   ```bash
+   cd pwa
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Build for production:
+   ```bash
+   npm run build
+   ```
+
+### Notes
+- If Maven attempts to use a local Nexus, update `settings.xml` to point to Maven Central
+- For environments without bundled JavaFX, use the `openjfx` profile:
+  ```bash
+  mvn -Popenjfx -Djavafx.platform=win clean package  # Use 'mac'/'linux' accordingly
+  ```
+
+## Configuration
+
+### Desktop Application (`application.properties`)
 
 Key settings are documented inline. Highlights:
 
-- app.ui.mode=normal — default Stealth mode (normal|mini)
-- app.ui.theme=dark — default theme for the Stealth drawer (dark|light)
-- app.study.daily-target=50 — progress target
-- app.deck.filter=all — deck filter (all or deck id)
-- Scheduling: app.study.batch-size, min/max intervals, snooze options
-- Geometry: banner heights/width fractions for Normal/Mini
-- Window settings: app.window.mini.width-fraction, app.window.stealth.width-fraction
+- `app.db.path`: Path to the H2 database file (default: `./data/memo`)
+- `app.h2.console.enabled`: Enable H2 web console (default: `true`)
+- `app.h2.console.port`: Port for the H2 web console (default: `8084`)
+
+**UI Settings** (now managed at runtime via Preferences dialog):
+- `app.ui.mode`: Stealth mode (normal|mini)
+- `app.ui.theme`: Theme for the Stealth drawer (dark|light)
+- `app.window.*`: Window positioning and sizing options
+- `app.ui.examples.*`: Examples display configuration
+
+**Study Settings**:
+- `app.study.daily-target`: Daily progress target (default: 50)
+- `app.study.batch-size`: Number of cards in each batch
+- `app.study.min/max-interval-minutes`: SRS interval boundaries
+- `app.study.snooze-*`: Snooze behavior settings
+- `app.deck.filter`: Deck filter (all or deck id)
+
+**Web Server**:
+- Default port: 7070 (HTTP) and 7071 (HTTPS)
+- Supports both HTTP and HTTPS with self-signed certificates
+- QR code generation for secure mobile pairing
+- Server-side rendering for web interface at `/web` endpoint
+- Static assets served from `/web/static/` (CSS, JS, images)
+
+### Web Interface Configuration
+
+The web interface provides full desktop functionality through the browser, accessing the same database as the desktop application. No additional configuration required beyond enabling the sync server.
+
+### PWA Configuration
+
+The PWA shares the same database as the desktop application and synchronizes data via the REST API. Configuration is handled automatically through the web interface.
 
 ## Usage
 
-- Stealth shortcuts: SPACE/ENTER flip, 1/2/3/4 rating, ESC hide, M mode toggle, T theme toggle, F8 show/hide
-- Main window → Data menu: New Deck, New Entry (adds note + card)
-- Main window → View → Deck: select All Decks or a specific deck
-- Main window → Data → Sync Server: Enable/disable sync server, pair mobile device
-- Dashboard: View statistics charts and today's task progress
+### Desktop Application
+
+**Stealth Banner Shortcuts**:
+- `SPACE/ENTER`: Flip card content
+- `1/2/3/4`: Rate card (Again/Hard/Good/Easy)
+- `ESC`: Hide banner (optional snooze)
+- `M`: Toggle between Normal/Mini mode
+- `T`: Toggle between Dark/Light theme
+- `F8`: Show/Hide banner
+
+**Main Window**:
+- **Data menu**: New Deck, New Entry (adds note + card), Manage Decks, Sync Server
+- **View menu**: Deck selection (All Decks or specific deck), Dashboard
+- **Study menu**: Start study session, Exam mode
+- **Help menu**: User Manual, About
+
+**Web Interface Access**:
+1. Enable sync server via Data → Sync Server
+2. Open browser to `http://localhost:7070/web` (or `https://localhost:7071/web` if HTTPS is enabled)
+3. Full desktop functionality available in browser
+
+**PWA Pairing**:
+1. Enable sync server via Data → Sync Server
+2. Scan QR code with mobile device
+3. Automatic synchronization begins
+
+### Web Interface (Browser)
+
+- **Home screen**: Quick access to Decks, Browse, and Study sections
+- **Decks management**: Create, edit, and organize study decks
+- **Browse mode**: Find and edit notes with full search capabilities
+- **Study mode**: Browser-based card review with keyboard shortcuts
+- **Theme toggle**: Switch between dark and light themes
+
+### PWA (Mobile)
+
+- **Decks screen**: Browse and select study decks
+- **Study mode**: Touch-optimized card review interface
+- **Connect screen**: Pair with desktop application
+- **Sync controls**: Manual sync and full refresh options
 
 ## Dashboard Features
 
@@ -57,10 +175,32 @@ Key settings are documented inline. Highlights:
   - Gray: Not started tasks
   - For large plans (>60), switches to a compact progress bar with Done/Total label
 
-## PWA Parity
+## Architecture
 
-- Decks and notes are shared via the same DB. The deck filter is persisted (app.deck.filter) so Desktop and PWA stay in sync conceptually.
-- Challenge batches can be appended from the tray; per‑deck challenge tracking can be added later.
+### Database Schema
+- **Decks**: Organizational units for cards
+- **Notes**: Content storage with front/back text, reading, position, examples, and metadata
+- **Cards**: Individual review cards with scheduling information (due dates, intervals, etc.)
+- **Review Logs**: Detailed history of all review sessions
+
+### SRS Algorithm
+- Implements a spaced repetition system with configurable intervals
+- Supports four rating levels with different interval multipliers
+- Includes fuzz factor to prevent cards from becoming due at the same time
+- Handles graduated cards and new cards separately
+
+### Web API
+- RESTful endpoints for deck, note, and card management
+- Real-time synchronization between desktop and mobile
+- Secure pairing using QR codes and temporary tokens
+- Support for both HTTP and HTTPS connections
+
+### PWA Technology Stack
+- **Frontend**: Vue 3 with Composition API
+- **Build Tool**: Vite
+- **Database**: Dexie (IndexedDB wrapper)
+- **Routing**: Vue Router 4
+- **PWA**: Vite PWA plugin for offline capabilities
 
 ## Troubleshooting
 
@@ -68,6 +208,19 @@ Key settings are documented inline. Highlights:
 - If Today shows 54/50, this is capped visually to 50/50; the bar never exceeds 100%.
 - If Examples don’t appear in Normal, ensure flip state is All (third click) and there is example content.
 - If charts don't display data, ensure there is review history in the database.
+- **PWA connection issues**: Check that the sync server is enabled and the QR code is scanned correctly.
+
+### Database Issues
+
+- **H2 Console**: Access via `http://localhost:8084` when enabled
+- **Database location**: Default is `./data/memo` (configurable via `app.db.path`)
+- **Backup**: Copy the database files (`memo.mv.db`, `memo.trace.db`) for backup
+
+### Performance
+
+- **Large decks**: Use deck filtering to limit the number of cards in study sessions
+- **Memory usage**: Adjust batch size (`app.study.batch-size`) for optimal performance
+- **Network sync**: Use Wi-Fi for faster synchronization between desktop and mobile
 
 ## Contributing
 

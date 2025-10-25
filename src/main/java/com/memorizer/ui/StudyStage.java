@@ -18,7 +18,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 /** Centered, standard study window (non-stealth) for daily practice. */
-public class StudyStage extends Stage {
+    public class StudyStage extends Stage {
     private final StudyService study;
     private final Label lblFront = new Label();
     private final Label lblBack  = new Label();
@@ -126,6 +126,21 @@ public class StudyStage extends Stage {
         setHeight(Math.ceil(vb.getHeight() + 1));
         if (!isShowing()) show();
         toFront(); requestFocus(); setIconified(false);
+    }
+
+    /** Show a specific card by id in this window. */
+    public void showCard(long cardId) {
+        try {
+            java.util.Optional<StudyService.CardView> ov = study.viewCardById(cardId);
+            if (ov.isPresent()) {
+                StudyService.CardView v = ov.get();
+                lblFront.setText(v.getFront());
+                lblBack.setText(v.getBack());
+                showingFront = true;
+                lblFront.setVisible(true);
+                lblBack.setVisible(false);
+            }
+        } catch (Exception ignored) {}
     }
 
     // Allow others (Main/Tray) to update theme live

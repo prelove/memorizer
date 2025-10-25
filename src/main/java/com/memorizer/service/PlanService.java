@@ -35,6 +35,11 @@ public class PlanService {
         public String getFront() { return front; }
     }
 
+    public static class DeckShare {
+        public String deckName;
+        public int count;
+    }
+
     /** Build or rebuild today's plan based on due/leech/new constraints. */
     public void buildToday() {
         LocalDate today = LocalDate.now();
@@ -103,6 +108,29 @@ public class PlanService {
         List<Long> pick = findNewCards(size);
         int seq = maxOrder(today) + 1;
         for (Long id : pick) insert(today, id, null, Kind.CHALLENGE.v, seq++);
+    }
+
+    /** Return today's counts grouped by deck (for UI composition breakdown). */
+    public java.util.List<DeckShare> deckSharesToday() {
+        java.util.List<DeckShare> out = new java.util.ArrayList<DeckShare>();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String sql = "SELECT COALESCE(d.name,'(No Deck)') AS name, COUNT(*) AS cnt " +
+                "FROM study_plan p JOIN card c ON c.id=p.card_id " +
+                "JOIN note n ON n.id=c.note_id " +
+                "LEFT JOIN deck d ON d.id=n.deck_id " +
+                "WHERE p.plan_date=? GROUP BY COALESCE(d.name,'(No Deck)') ORDER BY cnt DESC";
+        try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
+            ps.setDate(1, java.sql.Date.valueOf(today));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    DeckShare ds = new DeckShare();
+                    ds.deckName = rs.getString(1);
+                    ds.count = rs.getInt(2);
+                    out.add(ds);
+                }
+            }
+        } catch (SQLException e) { throw new RuntimeException("deckSharesToday failed", e); }
+        return out;
     }
 
     /** Return the next pending card id from today's plan (honors deck filter). */
