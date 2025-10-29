@@ -27,8 +27,13 @@ public class PreferencesStage extends Stage {
     // UI state refs
     private ToggleGroup tgTheme, tgMode, tgSched;
     private TextField tfBatch, tfMin, tfMax, tfDefer, tfSnooze;
+    private TextField tfDailyTarget, tfDailyNew, tfChallengeSize;
     private TextField tfWidthN, tfWidthM, tfOpacity;
+    private TextField tfExRollMs, tfExMarqMsPerPx;
     private CheckBox cbForceFallback, cbSnoozeOnHide, cbOverlay;
+    private CheckBox cbMiniIncludeRP;
+    private CheckBox cbDeckAutoBatch;
+    private TextField tfDotRadius, tfPerRow;
 
     public PreferencesStage(StudyService study, Scheduler scheduler, StealthStage stealth) {
         this.study = study;
@@ -89,8 +94,17 @@ public class PreferencesStage extends Stage {
             String schedNew = schedSel.startsWith("Due") ? "due" : "periodic";
             needReschedule |= applyIfChanged("app.study.scheduler.mode", schedNew, null);
 
-            int batch = parseInt(tfBatch.getText(), Config.getInt("app.study.batch-size", 5));
+            int batch = parseInt(tfBatch.getText(), Config.getInt("app.study.batch-size", 3));
             needReschedule |= applyIfChangedInt("app.study.batch-size", batch, null);
+
+            int dailyTarget = parseInt(tfDailyTarget.getText(), Config.getInt("app.study.daily-target", 50));
+            applyIfChangedInt("app.study.daily-target", dailyTarget, null);
+
+            int dailyNew = parseInt(tfDailyNew.getText(), Config.getInt("app.study.daily-new-limit", 20));
+            needReschedule |= applyIfChangedInt("app.study.daily-new-limit", dailyNew, null);
+
+            int chSize = parseInt(tfChallengeSize.getText(), Config.getInt("app.study.challenge-batch-size", 10));
+            applyIfChangedInt("app.study.challenge-batch-size", chSize, null);
 
             int minI = parseInt(tfMin.getText(), Config.getInt("app.study.min-interval-minutes", 20));
             needReschedule |= applyIfChangedInt("app.study.min-interval-minutes", minI, null);
@@ -107,6 +121,15 @@ public class PreferencesStage extends Stage {
             boolean forceFallback = cbForceFallback.isSelected();
             applyIfChangedBool("app.study.force-show-when-empty", forceFallback, null);
 
+            // General – deck switch behavior and Today spheres
+            boolean dsAuto = cbDeckAutoBatch.isSelected();
+            applyIfChangedBool("app.deck.switch.autostart-batch", dsAuto, null);
+
+            // dot radius already handled earlier; no duplicate write here
+
+            int per = parseInt(tfPerRow.getText(), Config.getInt("app.ui.progress.per-row", 20));
+            applyIfChangedInt("app.ui.progress.per-row", Math.max(5, per), null);
+
             boolean snoozeHide = cbSnoozeOnHide.isSelected();
             applyIfChangedBool("app.study.snooze-on-hide-enabled", snoozeHide, null);
 
@@ -122,6 +145,19 @@ public class PreferencesStage extends Stage {
 
             boolean overlay = cbOverlay.isSelected();
             stealthPosUpdate |= applyIfChangedBool("app.window.overlay-taskbar", overlay, null);
+
+            // Mini line-cycle preferences
+            boolean miniIncludeRP = (cbMiniIncludeRP != null && cbMiniIncludeRP.isSelected());
+            applyIfChangedBool("app.ui.mini.include-reading-pos", miniIncludeRP, null);
+
+            // Examples speeds
+            int rollMs = parseInt(tfExRollMs.getText(), Config.getInt("app.ui.examples.roll-interval-ms", 2800));
+            applyIfChangedInt("app.ui.examples.roll-interval-ms", rollMs, null);
+            int marqMsPerPx = parseInt(tfExMarqMsPerPx.getText(), Config.getInt("app.ui.examples.marquee-ms-per-px", 100));
+            applyIfChangedInt("app.ui.examples.marquee-ms-per-px", marqMsPerPx, null);
+
+            int dotR = parseInt(tfDotRadius.getText(), Config.getInt("app.ui.progress.dot-radius", 8));
+            applyIfChangedInt("app.ui.progress.dot-radius", dotR, null);
 
             if (stealthPosUpdate && stealth != null) {
                 if (stealth.isShowing()) stealth.showAndFocus();
@@ -153,7 +189,20 @@ public class PreferencesStage extends Stage {
         if ("mini".equalsIgnoreCase(curMode)) rbMini.setSelected(true); else rbNormal.setSelected(true);
         HBox modeRow = new HBox(10, rbNormal, rbMini);
 
-        box.getChildren().addAll(lTheme, themeRow, new Separator(), lMode, modeRow);
+        // Deck switch behavior
+        Label lDeck = new Label("On deck switch");
+        cbDeckAutoBatch = new CheckBox("Autostart new batch");
+        cbDeckAutoBatch.setSelected(Config.getBool("app.deck.switch.autostart-batch", true));
+        VBox deckRow = new VBox(4, cbDeckAutoBatch);
+
+        // Today spheres controls
+        Label lToday = new Label("Today spheres");
+        HBox spheresRow = new HBox(10);
+        tfDotRadius = new TextField(String.valueOf(Config.getInt("app.ui.progress.dot-radius", 8))); tfDotRadius.setPrefColumnCount(4);
+        tfPerRow = new TextField(String.valueOf(Config.getInt("app.ui.progress.per-row", 20))); tfPerRow.setPrefColumnCount(4);
+        spheresRow.getChildren().addAll(new Label("Dot size"), tfDotRadius, new Label("Per-row"), tfPerRow);
+
+        box.getChildren().addAll(lTheme, themeRow, new Separator(), lMode, modeRow, new Separator(), lDeck, deckRow, new Separator(), lToday, spheresRow);
         return box;
     }
 
@@ -174,9 +223,27 @@ public class PreferencesStage extends Stage {
 
         // Batch size
         g.add(new Label("Batch size"), 0, r);
-        tfBatch = new TextField(String.valueOf(Config.getInt("app.study.batch-size", 5))); tfBatch.setPrefColumnCount(6);
+        tfBatch = new TextField(String.valueOf(Config.getInt("app.study.batch-size", 3))); tfBatch.setPrefColumnCount(6);
         tfBatch.setTooltip(new Tooltip("Cards per banner session"));
         g.add(tfBatch, 1, r++);
+
+        // Daily target (progress)
+        g.add(new Label("Daily target (progress)"), 0, r);
+        tfDailyTarget = new TextField(String.valueOf(Config.getInt("app.study.daily-target", 50))); tfDailyTarget.setPrefColumnCount(6);
+        tfDailyTarget.setTooltip(new Tooltip("Target count for Today progress bar"));
+        g.add(tfDailyTarget, 1, r++);
+
+        // Daily NEW limit (plan)
+        g.add(new Label("Daily NEW limit (plan)"), 0, r);
+        tfDailyNew = new TextField(String.valueOf(Config.getInt("app.study.daily-new-limit", 20))); tfDailyNew.setPrefColumnCount(6);
+        tfDailyNew.setTooltip(new Tooltip("Number of NEW cards to add to today's plan"));
+        g.add(tfDailyNew, 1, r++);
+
+        // Challenge batch size
+        g.add(new Label("Challenge batch size"), 0, r);
+        tfChallengeSize = new TextField(String.valueOf(Config.getInt("app.study.challenge-batch-size", 10))); tfChallengeSize.setPrefColumnCount(6);
+        tfChallengeSize.setTooltip(new Tooltip("Cards to append when Challenge mode is triggered"));
+        g.add(tfChallengeSize, 1, r++);
 
         // Intervals
         g.add(new Label("Min interval (min)"), 0, r);
@@ -228,6 +295,20 @@ public class PreferencesStage extends Stage {
 
         cbOverlay = new CheckBox("Overlay taskbar region"); cbOverlay.setSelected(Config.getBool("app.window.overlay-taskbar", false));
         g.add(cbOverlay, 1, r++);
+
+        cbMiniIncludeRP = new CheckBox("Mini: include Reading/POS in per-line flip");
+        cbMiniIncludeRP.setSelected(Config.getBool("app.ui.mini.include-reading-pos", true));
+        cbMiniIncludeRP.setTooltip(new Tooltip("When enabled, the Mini window cycles Reading/POS between Back and Examples lines."));
+        g.add(cbMiniIncludeRP, 1, r++);
+
+        // Examples speeds
+        g.add(new Label("Examples roll interval (ms)"), 0, r);
+        tfExRollMs = new TextField(String.valueOf(Config.getInt("app.ui.examples.roll-interval-ms", 2800))); tfExRollMs.setPrefColumnCount(6);
+        g.add(tfExRollMs, 1, r++);
+
+        g.add(new Label("Examples marquee ms/px"), 0, r);
+        tfExMarqMsPerPx = new TextField(String.valueOf(Config.getInt("app.ui.examples.marquee-ms-per-px", 100))); tfExMarqMsPerPx.setPrefColumnCount(6);
+        g.add(tfExMarqMsPerPx, 1, r++);
 
         ColumnConstraints c0 = new ColumnConstraints(); c0.setMinWidth(180);
         ColumnConstraints c1 = new ColumnConstraints(); c1.setHgrow(Priority.ALWAYS);

@@ -44,7 +44,7 @@ public final class TrayActions {
         if (opt.isPresent()) {
             com.memorizer.service.StudyService.CardView v = opt.get();
             Platform.runLater(() -> {
-                int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+                int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 3);
                 stage.startBatch(batch);
                 stage.showCardView(v);
                 stage.showAndFocus();

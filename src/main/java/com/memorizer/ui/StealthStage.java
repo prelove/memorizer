@@ -69,6 +69,9 @@ public class StealthStage extends Stage {
     private final Label todayText = new Label("Today: 0/0");
     private final ProgressBar todayBar = new ProgressBar(0);
     private final Label miniContent = new Label("");
+    // Mini mode: prepared per-line sequence across front → back → examples
+    private java.util.List<String> miniSeq = new java.util.ArrayList<>();
+    private int miniIdx = 0;
 
     // separators for toggling in mini
     private final java.util.List<Separator> separators = new java.util.ArrayList<>();
@@ -295,7 +298,13 @@ public class StealthStage extends Stage {
         currentCardId = v.getCardId();
         // Reset flip state on each card
         flip.reset();
-        renderForFlipState(v);
+        // Prepare mini sequence for per-line flipping
+        buildMiniSequence(v);
+        if (mode == UIMode.MINI) {
+            renderMiniCurrent();
+        } else {
+            renderForFlipState(v);
+        }
 
         // Examples
         examplesMgr.setExamples(v.getExamples(), mode);
@@ -342,6 +351,13 @@ public class StealthStage extends Stage {
     private void doFlip() {
         boolean isNormal = (mode == UIMode.NORMAL);
         flip.advance(isNormal);
+        // If mini sequence is available, cycle it directly
+        if (mode == UIMode.MINI && !miniSeq.isEmpty()) {
+            miniIdx = (miniIdx + 1) % miniSeq.size();
+            renderMiniCurrent();
+            updateExamplesVisibility();
+            return;
+        }
         if (study != null && currentCardId > 0) {
             java.util.Optional<StudyService.CardView> ov = study.viewCardById(currentCardId);
             if (ov.isPresent()) {
@@ -364,6 +380,54 @@ public class StealthStage extends Stage {
             }
         }
         updateExamplesVisibility();
+    }
+
+    private void renderMiniCurrent() {
+        String text = (miniSeq.isEmpty() ? "" : miniSeq.get(Math.max(0, Math.min(miniIdx, miniSeq.size()-1))));
+        miniContent.setText(text);
+        miniContent.setVisible(true); miniContent.setManaged(true);
+        // Hide the normal centers in mini
+        front.setVisible(false); front.setManaged(false);
+        back.setVisible(false); back.setManaged(false);
+        readingPos.setVisible(false); readingPos.setManaged(false);
+        // Stop marquee to keep single-line stability per flip
+        examplesMgr.stop();
+        miniContent.setTranslateX(0);
+    }
+
+    private void buildMiniSequence(StudyService.CardView v) {
+        java.util.List<String> seq = new java.util.ArrayList<>();
+        for (String s : splitLines(v.getFront())) addIfNotBlank(seq, s);
+        for (String s : splitLines(v.getBack())) addIfNotBlank(seq, s);
+        if (com.memorizer.app.Config.getBool("app.ui.mini.include-reading-pos", true)) {
+            String rp = buildReadingPos(v);
+            for (String s : splitLines(rp)) addIfNotBlank(seq, s);
+        }
+        if (v.getExamples() != null) {
+            for (String ex : v.getExamples()) {
+                for (String s : splitLines(ex)) addIfNotBlank(seq, s);
+            }
+        }
+        this.miniSeq = seq;
+        this.miniIdx = 0;
+    }
+
+    private java.util.List<String> splitLines(String s) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (s == null) return out;
+        String[] parts = s.split("\\r?\\n");
+        for (String p : parts) {
+            if (p == null) continue;
+            String t = p.trim();
+            if (!t.isEmpty()) out.add(t);
+        }
+        return out;
+    }
+
+    private void addIfNotBlank(java.util.List<String> list, String s) {
+        if (s == null) return;
+        String t = s.trim();
+        if (!t.isEmpty()) list.add(t);
     }
 
     private void renderForFlipState(StudyService.CardView v) {

@@ -255,7 +255,7 @@ public class PlanPanel {
         if (cardView.isPresent()) {
             com.memorizer.ui.StealthStage stealth = AppContext.getStealth();
             if (stealth != null) {
-                int batchSize = Config.getInt("app.study.batch-size", 1);
+                int batchSize = Config.getInt("app.study.batch-size", 3);
                 stealth.startBatch(batchSize);
                 stealth.showCardView(cardView.get());
                 stealth.showAndFocus();

@@ -231,11 +231,35 @@ public class MenuBarBuilder {
         MenuItem miSnooze = new MenuItem("Snooze 10 min");
         miSnooze.setOnAction(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
 
+        // Immediate rebuild action
+        MenuItem miRebuildPlan = new MenuItem("Rebuild Today's Plan Now");
+        miRebuildPlan.setOnAction(e -> {
+            studyService.rebuildTodayPlan();
+            // Refresh panels
+            reloadPlanCallback.run();
+            refreshStatsCallback.run();
+            // Update banner to reflect new plan immediately
+            try {
+                StealthStage stealth = AppContext.getStealth();
+                if (stealth != null) {
+                    java.util.Optional<com.memorizer.service.StudyService.CardView> ov = studyService.nextFromPlanPreferred(false);
+                    if (ov.isPresent()) {
+                        int batch = Config.getInt("app.study.batch-size", 3);
+                        stealth.startBatch(batch);
+                        stealth.showCardView(ov.get());
+                        stealth.showAndFocus();
+                    }
+                }
+            } catch (Exception ignored) {}
+        });
+
         // Scheduler mode submenu
         Menu mSchedMode = buildSchedulerModeMenu();
 
         menu.getItems().addAll(
             miOpenStudy, miShowNow,
+            new SeparatorMenuItem(),
+            miRebuildPlan,
             new SeparatorMenuItem(),
             mSchedMode,
             new SeparatorMenuItem(),
@@ -430,6 +454,19 @@ public class MenuBarBuilder {
             StealthStage stealth = AppContext.getStealth();
             if (stealth != null) {
                 stealth.refreshTodayProgress();
+                boolean autoStart = Config.getBool("app.deck.switch.autostart-batch", true);
+                java.util.Optional<com.memorizer.service.StudyService.CardView> ov = studyService.nextFromPlanPreferred(false);
+                if (ov.isPresent()) {
+                    if (autoStart) {
+                        int batch = Config.getInt("app.study.batch-size", 3);
+                        stealth.startBatch(batch);
+                        stealth.showCardView(ov.get());
+                        stealth.showAndFocus();
+                    } else {
+                        // Only switch the displayed card; no new batch or focus steal
+                        stealth.showCardView(ov.get());
+                    }
+                }
             }
         } catch (Exception ignored) {
         }

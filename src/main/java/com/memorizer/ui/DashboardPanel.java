@@ -47,8 +47,8 @@ public class DashboardPanel {
     private BarChart<String, Number> ratingDistributionChart;
     private BarChart<String, Number> cardStatusChart;
     
-    // Task progress indicator (rectangles) + fallback bar
-    private HBox taskProgressContainer;
+    // Task progress indicator (spheres grid)
+    private GridPane taskProgressContainer;
     private HBox taskProgressRow;
     private HBox taskProgressBarRow;
     private final ProgressBar taskProgressBar = new ProgressBar(0);
@@ -58,6 +58,16 @@ public class DashboardPanel {
     private final VBox taskProgressStatusStackBar = new VBox(1);
     private final VBox taskProgressDeckStackBar = new VBox(1);
     private final Label taskProgressTitleCount = new Label("");
+    private javafx.scene.control.TableView<HistoryRow> historyTable;
+    private java.time.LocalDate selectedHistoryDate;
+
+    private static class HistoryRow {
+        java.time.LocalDate date;
+        int done;
+        int target;
+        boolean completed;
+        boolean inStreak;
+    }
 
     public DashboardPanel(StudyService studyService, Scheduler scheduler) {
         this.studyService = studyService;
@@ -100,10 +110,17 @@ public class DashboardPanel {
         VBox summaryContainer = new VBox(8);
         summaryContainer.setPadding(new Insets(10));
         
-        // Add title
+        // Add title with right-aligned refresh
         Label titleLabel = new Label("Summary Statistics");
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-        summaryContainer.getChildren().add(titleLabel);
+        Button btnRefresh = new Button("Refresh (F5)");
+        btnRefresh.getStyleClass().addAll("btn", "btn-primary");
+        btnRefresh.setOnAction(e -> refresh());
+        btnRefresh.setPrefWidth(120);
+        HBox titleRow = new HBox(10, titleLabel);
+        Region tSpacer = new Region(); HBox.setHgrow(tSpacer, javafx.scene.layout.Priority.ALWAYS);
+        titleRow.getChildren().addAll(tSpacer, btnRefresh);
+        summaryContainer.getChildren().add(titleRow);
         
         // Create grid for statistics
         GridPane statsGrid = new GridPane();
@@ -123,17 +140,13 @@ public class DashboardPanel {
         
         summaryContainer.getChildren().add(statsGrid);
         
-        // Add refresh button
-        Button btnRefresh = new Button("Refresh (F5)");
-        btnRefresh.getStyleClass().addAll("btn", "btn-primary");
-        btnRefresh.setOnAction(e -> refresh());
-        btnRefresh.setPrefWidth(120);
+        // Recent progress history
+        Label historyTitle = new Label("Recent Progress (14 days)");
+        historyTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold;");
+        historyTable = buildHistoryTable();
         
-        HBox buttonContainer = new HBox();
-        buttonContainer.getChildren().add(btnRefresh);
-        buttonContainer.setPadding(new Insets(10, 0, 0, 0));
-        
-        summaryContainer.getChildren().add(buttonContainer);
+        summaryContainer.getChildren().addAll(historyTitle, historyTable);
+        VBox.setVgrow(historyTable, javafx.scene.layout.Priority.ALWAYS);
         
         return summaryContainer;
     }
@@ -145,6 +158,49 @@ public class DashboardPanel {
         grid.add(new Label(label), 0, row);
         grid.add(valueLabel, 1, row);
         valueLabel.setStyle("-fx-font-weight: bold;");
+    }
+
+    private javafx.scene.control.TableView<HistoryRow> buildHistoryTable() {
+        javafx.scene.control.TableView<HistoryRow> tv = new javafx.scene.control.TableView<>();
+        tv.setPrefHeight(220);
+        tv.setColumnResizePolicy(javafx.scene.control.TableView.CONSTRAINED_RESIZE_POLICY);
+
+        javafx.scene.control.TableColumn<HistoryRow, String> cDate = new javafx.scene.control.TableColumn<>("Date");
+        cDate.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(cd.getValue().date.toString()));
+        cDate.setPrefWidth(100);
+
+        javafx.scene.control.TableColumn<HistoryRow, String> cDone = new javafx.scene.control.TableColumn<>("Done?");
+        cDone.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(cd.getValue().completed ? "Yes" : (cd.getValue().done > 0 ? "Partial" : "No")));
+        cDone.setPrefWidth(80);
+
+        javafx.scene.control.TableColumn<HistoryRow, String> cProg = new javafx.scene.control.TableColumn<>("Progress");
+        cProg.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(cd.getValue().done + "/" + cd.getValue().target));
+        cProg.setStyle("-fx-alignment: CENTER-RIGHT;");
+
+        tv.getColumns().addAll(cDate, cDone, cProg);
+
+        tv.setRowFactory(table -> new javafx.scene.control.TableRow<HistoryRow>() {
+            @Override protected void updateItem(HistoryRow item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setStyle(""); return; }
+                String bg;
+                if (item.inStreak && item.completed) bg = "#fff3cd"; // soft yellow
+                else if (item.completed) bg = "#d4edda";              // soft green
+                else if (item.done > 0) bg = "#ffe8cc";                // soft orange
+                else bg = "#f1f3f5";                                   // soft gray
+                setStyle("-fx-background-color: " + bg + ";");
+            }
+        });
+
+        // Optional: click to filter daily chart to that day
+        tv.setOnMouseClicked(ev -> {
+            HistoryRow r = tv.getSelectionModel().getSelectedItem();
+            if (r != null) {
+                selectedHistoryDate = r.date;
+                updateCharts();
+            }
+        });
+        return tv;
     }
     
     /**
@@ -181,9 +237,16 @@ public class DashboardPanel {
         titleRow.getChildren().addAll(titleSpacer, taskProgressTitleCount);
         Label taskProgressLegend = new Label("Legend: Done (green) • Pending (orange) • Queued (gray). Hover or click items.");
         taskProgressLegend.setStyle("-fx-font-size: 12px; -fx-text-fill: #666;");
-        taskProgressContainer = new HBox(2);
+        taskProgressContainer = new GridPane();
+        taskProgressContainer.setHgap(8);
+        taskProgressContainer.setVgap(8);
         taskProgressContainer.setAlignment(Pos.CENTER_LEFT);
-        taskProgressContainer.setPrefHeight(30);
+        // 20 columns, evenly spaced
+        for (int i = 0; i < 20; i++) {
+            javafx.scene.layout.ColumnConstraints cc = new javafx.scene.layout.ColumnConstraints();
+            cc.setPercentWidth(5.0);
+            taskProgressContainer.getColumnConstraints().add(cc);
+        }
         taskProgressText.setStyle("-fx-font-weight: bold;");
         // Mini stacked bar showing proportions (done/pending/queued)
         taskProgressStatusStack.setPrefWidth(10);
@@ -275,12 +338,14 @@ public class DashboardPanel {
         
         // Get data for last 7 days
         List<ChartRepository.DailyReviewCount> data = chartRepo.getDailyReviewCounts(7);
-        
-        // Add data to series
+
+        // Add data to series (optionally filter to selected date)
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd");
         for (ChartRepository.DailyReviewCount item : data) {
-            String dateLabel = item.date.format(formatter);
-            series.getData().add(new XYChart.Data<>(dateLabel, item.count));
+            if (selectedHistoryDate == null || selectedHistoryDate.equals(item.date)) {
+                String dateLabel = item.date.format(formatter);
+                series.getData().add(new XYChart.Data<>(dateLabel, item.count));
+            }
         }
         
         // Add series to chart then style once node is created
@@ -371,63 +436,60 @@ public class DashboardPanel {
         int doneTasks = Math.max(0, planCounts.done);
         int pendingTasks = Math.max(0, planCounts.pending);
 
-        // Choose rendering mode: rectangles for small totals, bar for large
-        boolean useBar = totalTasks > 60;
-        taskProgressBarRow.setVisible(useBar);
-        taskProgressBarRow.setManaged(useBar);
-        taskProgressContainer.setVisible(!useBar);
-        taskProgressContainer.setManaged(!useBar);
+        // Simplified: always show spheres (no bar fallback)
+        taskProgressBarRow.setVisible(false);
+        taskProgressBarRow.setManaged(false);
+        taskProgressContainer.setVisible(true);
+        taskProgressContainer.setManaged(true);
 
-        if (useBar) {
-            double p = (totalTasks == 0) ? 0.0 : Math.min(1.0, doneTasks / (double) totalTasks);
-            taskProgressBar.setProgress(p);
-            taskProgressText.setText(doneTasks + "/" + totalTasks);
-            taskProgressTitleCount.setText(doneTasks + "/" + totalTasks);
-            Tooltip.install(taskProgressBarRow, new Tooltip("Done: " + doneTasks + ", Pending: " + pendingTasks));
-            taskProgressRow.setVisible(false);
-            taskProgressRow.setManaged(false);
-            taskProgressBarRow.setVisible(true);
-            taskProgressBarRow.setManaged(true);
-            updateStatusStacks(doneTasks, pendingTasks, Math.max(0, totalTasks - doneTasks - pendingTasks));
-            updateDeckStacks();
-            return;
-        }
-        
         // Build indicators using today's plan list for richer hover info
         java.util.List<com.memorizer.service.PlanService.PlanRow> rows = studyService.planListToday();
         taskProgressText.setText(doneTasks + "/" + totalTasks);
         taskProgressTitleCount.setText(doneTasks + "/" + totalTasks);
+        int dotRadius = com.memorizer.app.Config.getInt("app.ui.progress.dot-radius", 8);
+        int perRow = Math.max(5, com.memorizer.app.Config.getInt("app.ui.progress.per-row", 20));
+
+        // Rebuild column constraints based on per-row capacity
+        taskProgressContainer.getColumnConstraints().clear();
+        for (int i = 0; i < perRow; i++) {
+            javafx.scene.layout.ColumnConstraints cc = new javafx.scene.layout.ColumnConstraints();
+            cc.setPercentWidth(100.0 / perRow);
+            taskProgressContainer.getColumnConstraints().add(cc);
+        }
+        taskProgressContainer.getChildren().clear();
+
         for (int i = 0; i < rows.size(); i++) {
             com.memorizer.service.PlanService.PlanRow row = rows.get(i);
-            Region indicator = new Region();
-            double height = Math.max(4.0, 22.0 * masteryFor(row.getCardId()));
-            indicator.setPrefSize(10, height);
-            indicator.setStyle("-fx-background-color: #cccccc; -fx-background-radius: 2;");
+            javafx.scene.shape.Circle dot = new javafx.scene.shape.Circle();
+            double radius = Math.max(3.0, (double) dotRadius);
+            dot.setRadius(radius);
 
             int st = row.getStatus();
-            if (st == 1) { // done
-                indicator.setStyle("-fx-background-color: #4CAF50; -fx-background-radius: 2;");
-            } else if (st == 0) { // pending
-                indicator.setStyle("-fx-background-color: #FF9800; -fx-background-radius: 2;");
-            } else { // rolled/skipped
-                indicator.setStyle("-fx-background-color: #BDBDBD; -fx-background-radius: 2;");
-            }
+            if (st == 1) dot.setFill(javafx.scene.paint.Color.web("#4CAF50"));
+            else if (st == 0) dot.setFill(javafx.scene.paint.Color.web("#FF9800"));
+            else dot.setFill(javafx.scene.paint.Color.web("#BDBDBD"));
 
             long cardId = row.getCardId();
             String base = "Deck: " + safe(row.getDeckName()) + "\n" + "Front: " + summarize(row.getFront()) + "\n(click to open)";
             Tooltip tp = new Tooltip(base);
             // Lazy-enrich tooltip on first hover
-            indicator.setOnMouseEntered(e -> enrichTooltipAsync(tp, cardId));
-            indicator.setOnMouseClicked(e -> openStudyForCard(cardId));
-            Tooltip.install(indicator, tp);
-            taskProgressContainer.getChildren().add(indicator);
+            dot.setOnMouseEntered(e -> enrichTooltipAsync(tp, cardId));
+            dot.setOnMouseClicked(e -> openStudyForCard(cardId));
+            Tooltip.install(dot, tp);
+            int col = i % perRow;
+            int r = i / perRow;
+            GridPane.setColumnIndex(dot, col);
+            GridPane.setRowIndex(dot, r);
+            taskProgressContainer.getChildren().add(dot);
         }
         taskProgressRow.setVisible(true);
         taskProgressRow.setManaged(true);
         taskProgressBarRow.setVisible(false);
         taskProgressBarRow.setManaged(false);
-        updateStatusStacks(doneTasks, pendingTasks, Math.max(0, totalTasks - doneTasks - pendingTasks));
-        updateDeckStacks();
+        // Hide stacked bars in simplified view
+        for (javafx.scene.Node n : taskProgressRow.getChildren()) {
+            // ensure row remains visible but stacks may be empty; keep as-is
+        }
     }
 
     // ---- Helpers for progress hover ----
@@ -653,6 +715,38 @@ public class DashboardPanel {
         
         // Update task progress indicator
         updateTaskProgressIndicator();
+
+        // Update history table
+        updateHistoryTable();
+    }
+
+    private void updateHistoryTable() {
+        if (historyTable == null) return;
+        int days = 14;
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.util.Map<java.time.LocalDate, Integer> doneMap = new java.util.HashMap<>();
+        java.util.List<com.memorizer.db.ChartRepository.DailyReviewCount> list = new com.memorizer.db.ChartRepository().getDailyReviewCounts(days);
+        for (com.memorizer.db.ChartRepository.DailyReviewCount d : list) doneMap.put(d.date, d.count);
+
+        int target = com.memorizer.app.Config.getInt("app.study.daily-target", 50);
+        java.util.List<HistoryRow> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < days; i++) {
+            java.time.LocalDate d = today.minusDays(i);
+            HistoryRow r = new HistoryRow();
+            r.date = d;
+            r.done = doneMap.getOrDefault(d, 0);
+            r.target = target;
+            r.completed = target > 0 && r.done >= target;
+            rows.add(r);
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            HistoryRow r = rows.get(i);
+            boolean prevCompleted = (i + 1 < rows.size()) && rows.get(i + 1).completed; // reverse chronological order
+            boolean nextCompleted = (i - 1 >= 0) && rows.get(i - 1).completed;
+            r.inStreak = r.completed && (prevCompleted || nextCompleted);
+        }
+        javafx.collections.ObservableList<HistoryRow> data = javafx.collections.FXCollections.observableArrayList(rows);
+        historyTable.setItems(data);
     }
 
     /**

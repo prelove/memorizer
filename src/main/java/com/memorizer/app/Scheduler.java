@@ -93,7 +93,7 @@ public class Scheduler {
         if (v.isPresent()) {
             StudyService.CardView cv = v.get();
             Platform.runLater(() -> {
-                int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+                int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 3);
                 stealth.startBatch(batch);
                 stealth.showCardView(cv);   // 注意：现在传的是 CardView
                 stealth.showAndFocus();
@@ -139,7 +139,7 @@ public class Scheduler {
 
             if (v.isPresent()) {
                 final com.memorizer.service.StudyService.CardView cv = v.get();
-                final int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 1);
+                final int batch = com.memorizer.app.Config.getInt("app.study.batch-size", 3);
                 javafx.application.Platform.runLater(() -> {
                     stealth.startBatch(batch);
                     stealth.showCardView(cv);

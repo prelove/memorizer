@@ -6,7 +6,7 @@
 
   <groupId>com.memorizer</groupId>
   <artifactId>memorizer</artifactId>
-  <version>0.5.0</version>
+  <version>0.6.0</version>
   <name>Memorizer</name>
   <description>Lightweight desktop memorization assistant (Java8 + JavaFX)</description>
 
@@ -100,6 +100,25 @@
       <version>1.70</version>
     </dependency>
   
+    <!-- Testing: JUnit 5 + Mockito -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.12.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -145,6 +164,18 @@
         <version>3.3.1</version>
         <configuration>
           <encoding>UTF-8</encoding>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <useModulePath>false</useModulePath>
+          <includes>
+            <include>**/*Test.java</include>
+          </includes>
         </configuration>
       </plugin>
     </plugins>

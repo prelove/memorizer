@@ -47,7 +47,7 @@ public class MainStage extends Stage {
 
         setTitle("Memorizer");
         setMinWidth(720);
-        setMinHeight(480);
+        setMinHeight(660);
 
         // 设置窗口图标
         try {
@@ -141,7 +141,7 @@ public class MainStage extends Stage {
         Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
         double width = Math.ceil(visualBounds.getWidth() / 2.0);
         // 增加高度1/4
-        double height = Math.ceil(visualBounds.getHeight() / 2.0 * 1.25);
+        double height = Math.ceil(visualBounds.getHeight() / 2.0 * 1.52);
         double x = Math.floor(visualBounds.getMinX() + (visualBounds.getWidth() - width) / 2.0);
         double y = Math.floor(visualBounds.getMinY() + (visualBounds.getHeight() - height) / 2.0);
         setX(x);

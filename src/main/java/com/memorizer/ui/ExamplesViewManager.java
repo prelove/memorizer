@@ -142,9 +142,10 @@ final class ExamplesViewManager {
         Text meas = new Text(txt);
         meas.setFont(target.getFont());
         double w = meas.getLayoutBounds().getWidth();
+        int msPerPx = com.memorizer.app.Config.getInt("app.ui.examples.marquee-ms-per-px", 100);
         marquee = new Timeline(
                 new KeyFrame(Duration.ZERO, e -> marqueeTarget.setTranslateX(0)),
-                new KeyFrame(Duration.millis(80 * Math.max(50, w)), e -> marqueeTarget.setTranslateX(-w - 32))
+                new KeyFrame(Duration.millis(msPerPx * Math.max(50, w)), e -> marqueeTarget.setTranslateX(-w - 32))
         );
         marquee.setCycleCount(Timeline.INDEFINITE);
         marquee.play();
