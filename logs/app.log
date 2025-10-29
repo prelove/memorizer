@@ -59,3 +59,51 @@
 2025-10-29 22:26:42.169 INFO  com.memorizer.app.WebServerManager - Web server started on http://0.0.0.0:12403/
 2025-10-29 22:28:41.230 INFO  com.memorizer.app.Scheduler - Busy (session active). Defer next tick by 3 min.
 2025-10-29 22:31:52.832 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
+2025-10-29 23:18:03.216 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2025-10-29 23:18:07.782 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2025-10-29 23:18:07.782 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:E:\workspace_eclipse2024\memorizer\.\data\memo (H2 1.4)
+2025-10-29 23:18:07.875 INFO  o.f.core.internal.command.DbValidate - Successfully validated 3 migrations (execution time 00:00.045s)
+2025-10-29 23:18:07.902 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": 3
+2025-10-29 23:18:07.907 INFO  o.f.core.internal.command.DbMigrate - Schema "PUBLIC" is up to date. No migration necessary.
+2025-10-29 23:18:07.910 INFO  com.memorizer.app.H2ConsoleServer - Starting H2 Console with args=[-webPort, 8084]
+2025-10-29 23:18:07.915 INFO  com.memorizer.app.H2ConsoleServer - H2 Console started at http://127.0.0.1:8084/ (allowOthers=false)
+2025-10-29 23:18:08.371 INFO  com.memorizer.app.Scheduler - Scheduler started.
+2025-10-29 23:18:08.764 INFO  com.memorizer.app.MainApp - Memorizer started.
+2025-10-29 23:18:58.069 INFO  org.eclipse.jetty.util.log - Logging initialized @55536ms to org.eclipse.jetty.util.log.Slf4jLog
+2025-10-29 23:18:58.197 INFO  io.javalin.Javalin - '.html' is already registered to class io.javalin.plugin.rendering.template.JavalinThymeleaf. Overriding.
+2025-10-29 23:18:58.209 INFO  io.javalin.Javalin - 
+           __                      __ _
+          / /____ _ _   __ ____ _ / /(_)____
+     __  / // __ `/| | / // __ `// // // __ \
+    / /_/ // /_/ / | |/ // /_/ // // // / / /
+    \____/ \__,_/  |___/ \__,_//_//_//_/ /_/
+
+        https://javalin.io/documentation
+
+2025-10-29 23:18:58.211 INFO  io.javalin.Javalin - Starting Javalin ...
+2025-10-29 23:18:58.258 INFO  org.eclipse.jetty.server.Server - jetty-9.4.45.v20220203; built: 2022-02-03T09:14:34.105Z; git: 4a0c91c0be53805e3fcffdcdcc9587d5301863db; jvm 1.8.0_40-b25
+2025-10-29 23:18:58.353 ERROR io.javalin.Javalin - Failed to start Javalin
+2025-10-29 23:18:58.354 WARN  com.memorizer.app.WebServerManager - Start failed on 0.0.0.0:7777 -> java.lang.RuntimeException: java.io.IOException: Invalid keystore format
+2025-10-29 23:18:58.354 INFO  io.javalin.Javalin - Stopping Javalin ...
+2025-10-29 23:18:58.360 INFO  o.e.jetty.server.AbstractConnector - Stopped ServerConnector@63d17308{SSL, (ssl, http/1.1)}{0.0.0.0:7777}
+2025-10-29 23:18:58.366 INFO  io.javalin.Javalin - Javalin has stopped
+2025-10-29 23:18:58.376 INFO  io.javalin.Javalin - 
+           __                      __ _
+          / /____ _ _   __ ____ _ / /(_)____
+     __  / // __ `/| | / // __ `// // // __ \
+    / /_/ // /_/ / | |/ // /_/ // // // / / /
+    \____/ \__,_/  |___/ \__,_//_//_//_/ /_/
+
+        https://javalin.io/documentation
+
+2025-10-29 23:18:58.376 INFO  io.javalin.Javalin - Starting Javalin ...
+2025-10-29 23:18:58.377 INFO  org.eclipse.jetty.server.Server - jetty-9.4.45.v20220203; built: 2022-02-03T09:14:34.105Z; git: 4a0c91c0be53805e3fcffdcdcc9587d5301863db; jvm 1.8.0_40-b25
+2025-10-29 23:18:58.404 INFO  o.e.jetty.server.AbstractConnector - Started ServerConnector@209e47c4{HTTP/1.1, (http/1.1)}{0.0.0.0:4657}
+2025-10-29 23:18:58.404 INFO  org.eclipse.jetty.server.Server - Started @55870ms
+2025-10-29 23:18:58.404 INFO  io.javalin.Javalin - Listening on http://0.0.0.0:4657/
+2025-10-29 23:18:58.405 INFO  io.javalin.Javalin - Javalin started in 28ms \o/
+2025-10-29 23:18:58.856 INFO  com.memorizer.app.WebServerManager - Web server started on http://0.0.0.0:4657/
+2025-10-29 23:19:13.389 INFO  com.memorizer.app.Scheduler - Busy (session active). Defer next tick by 3 min.
+2025-10-29 23:22:13.393 INFO  com.memorizer.app.Scheduler - Busy (session active). Defer next tick by 3 min.
+2025-10-29 23:25:13.396 INFO  com.memorizer.app.Scheduler - Busy (session active). Defer next tick by 3 min.
+2025-10-29 23:27:59.758 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
