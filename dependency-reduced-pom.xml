@@ -4,7 +4,7 @@
   <groupId>com.memorizer</groupId>
   <artifactId>memorizer</artifactId>
   <name>Memorizer</name>
-  <version>0.5.0</version>
+  <version>0.6.0</version>
   <description>Lightweight desktop memorization assistant (Java8 + JavaFX)</description>
   <build>
     <plugins>
@@ -46,6 +46,16 @@
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <useModulePath>false</useModulePath>
+          <includes>
+            <include>**/*Test.java</include>
+          </includes>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   <profiles>
@@ -55,37 +65,33 @@
         <dependency>
           <groupId>org.openjfx</groupId>
           <artifactId>javafx-base</artifactId>
-          <version>21.0.4</version>
-          <classifier>linux</classifier>
-          <scope>compile</scope>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
         </dependency>
         <dependency>
           <groupId>org.openjfx</groupId>
           <artifactId>javafx-graphics</artifactId>
-          <version>21.0.4</version>
-          <classifier>linux</classifier>
-          <scope>compile</scope>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
         </dependency>
         <dependency>
           <groupId>org.openjfx</groupId>
           <artifactId>javafx-controls</artifactId>
-          <version>21.0.4</version>
-          <classifier>linux</classifier>
-          <scope>compile</scope>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
         </dependency>
         <dependency>
           <groupId>org.openjfx</groupId>
           <artifactId>javafx-swing</artifactId>
-          <version>21.0.4</version>
-          <classifier>linux</classifier>
-          <scope>compile</scope>
+          <version>${javafx.version}</version>
+          <classifier>${javafx.platform}</classifier>
         </dependency>
       </dependencies>
       <properties>
         <javafx.platform>linux</javafx.platform>
-        <maven.compiler.target>11</maven.compiler.target>
         <maven.compiler.source>11</maven.compiler.source>
         <javafx.version>21.0.4</javafx.version>
+        <maven.compiler.target>11</maven.compiler.target>
       </properties>
     </profile>
   </profiles>
@@ -107,15 +113,73 @@
       <url>https://repo1.maven.org/maven2/</url>
     </pluginRepository>
   </pluginRepositories>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>opentest4j</artifactId>
+          <groupId>org.opentest4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>junit-platform-commons</artifactId>
+          <groupId>org.junit.platform</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>apiguardian-api</artifactId>
+          <groupId>org.apiguardian</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>junit-platform-engine</artifactId>
+          <groupId>org.junit.platform</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>apiguardian-api</artifactId>
+          <groupId>org.apiguardian</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.12.0</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>byte-buddy</artifactId>
+          <groupId>net.bytebuddy</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>byte-buddy-agent</artifactId>
+          <groupId>net.bytebuddy</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>objenesis</artifactId>
+          <groupId>org.objenesis</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
   <properties>
-    <main.class>com.memorizer.app.MainApp</main.class>
-    <flyway.version>7.15.0</flyway.version>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
-    <slf4j.version>1.7.36</slf4j.version>
     <poi.version>5.2.5</poi.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <logback.version>1.2.13</logback.version>
+    <slf4j.version>1.7.36</slf4j.version>
     <caffeine.version>2.9.3</caffeine.version>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <flyway.version>7.15.0</flyway.version>
+    <logback.version>1.2.13</logback.version>
+    <main.class>com.memorizer.app.MainApp</main.class>
+    <maven.compiler.source>1.8</maven.compiler.source>
   </properties>
 </project>
