@@ -62,6 +62,9 @@ public class MenuBarBuilder {
         MenuItem miH2 = new MenuItem("Open H2 Console");
         miH2.setOnAction(e -> TrayActions.openH2Console());
 
+        MenuItem miBackup = new MenuItem("Backup Database...");
+        miBackup.setOnAction(e -> backupDatabase());
+
         MenuItem miExit = new MenuItem("Exit");
         miExit.setOnAction(e -> System.exit(0));
 
@@ -69,11 +72,32 @@ public class MenuBarBuilder {
             miImport, miTemplate,
             new SeparatorMenuItem(),
             miH2,
+            miBackup,
             new SeparatorMenuItem(),
             miExit
         );
 
         return menu;
+    }
+
+    /** Backup the H2 database to a ZIP file chosen by the user. */
+    private void backupDatabase() {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("Save Database Backup");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("ZIP backup", "*.zip"));
+        fc.setInitialFileName("memo-backup.zip");
+        java.io.File target = fc.showSaveDialog(owner);
+        if (target == null) return;
+        try (java.sql.Statement st = com.memorizer.db.Database.get().createStatement()) {
+            st.execute("BACKUP TO '" + target.getAbsolutePath().replace("'", "''") + "'");
+            showNotice("Backup saved: " + target.getName());
+        } catch (Exception ex) {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                javafx.scene.control.Alert.AlertType.ERROR,
+                "Backup failed: " + ex.getMessage(),
+                javafx.scene.control.ButtonType.OK);
+            alert.showAndWait();
+        }
     }
 
     /**

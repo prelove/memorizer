@@ -91,6 +91,14 @@ public class MainStage extends Stage {
                 refreshStats();
                 reloadPlan();
             }
+            // Ctrl+= / Ctrl+- to adjust font scale
+            if (event.isControlDown()) {
+                if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS) {
+                    adjustFontScale(scene, +0.1);
+                } else if (event.getCode() == KeyCode.MINUS) {
+                    adjustFontScale(scene, -0.1);
+                }
+            }
         });
         setScene(scene);
 
@@ -201,6 +209,17 @@ public class MainStage extends Stage {
 
     public void applyTheme(boolean light) {
         // Main window uses default Modena theme; nothing to change yet.
+    }
+
+    /** Adjust font scale by delta (clamped to 0.7–1.5), persist to Config, and apply to scene. */
+    private void adjustFontScale(javafx.scene.Scene scene, double delta) {
+        double current = com.memorizer.app.Config.getFontScale();
+        double next = Math.round((current + delta) * 10.0) / 10.0;
+        if (next < 0.7) next = 0.7;
+        if (next > 1.5) next = 1.5;
+        com.memorizer.app.Config.set("app.ui.font-scale", String.valueOf(next));
+        scene.getRoot().setStyle("-fx-font-size: " + next + "em;");
+        showNotice("Font scale: " + next);
     }
 
     public void showAndFocus() {
