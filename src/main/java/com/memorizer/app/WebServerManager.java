@@ -133,6 +133,7 @@ public final class WebServerManager {
             if (in == null) { ctx.status(404).result("not found"); return; }
             String ct = rel.endsWith(".css")?"text/css": rel.endsWith(".js")?"application/javascript":"text/plain";
             ctx.contentType(ct);
+            ctx.header("Cache-Control", "public, max-age=86400");
             ctx.result(in);
         });
 
@@ -579,6 +580,7 @@ public final class WebServerManager {
         app.before("/api/*", ctx -> {
             if ("OPTIONS".equalsIgnoreCase(ctx.method())) return; // let preflight through
             if ("/api/health".equals(ctx.path())) return;
+            if ("/api/stats/summary".equals(ctx.path())) return; // public stats endpoint
             if ("/api/pair/verify".equals(ctx.path())) return; // allow verify without token
             if ("/api/pair/decode".equals(ctx.path())) return; // allow decode without token
             String tok = ctx.header("X-Token");
@@ -875,6 +877,19 @@ public final class WebServerManager {
 
         // (removed duplicate fallback definition of /api/cards/create; single definition kept above)
 
+        // Stats summary API (public, no token required)
+        app.get("/api/stats/summary", ctx -> {
+            com.memorizer.db.StatsRepository repo = new com.memorizer.db.StatsRepository();
+            com.memorizer.db.StatsRepository.Stats s = repo.load();
+            Map<String,Object> out = new HashMap<>();
+            out.put("dueCount", s.dueCount);
+            out.put("newCount", s.newCount);
+            out.put("totalCards", s.totalCards);
+            out.put("totalNotes", s.totalNotes);
+            out.put("todayReviews", s.todayReviews);
+            ctx.json(out);
+        });
+
         int attempts = 0; boolean started = false; int tryPort = port;
         while (attempts < 10 && !started) {
             try {
@@ -1029,6 +1044,7 @@ public final class WebServerManager {
             if (in == null) { ctx.status(404).result("not found"); return; }
             String ct = rel.endsWith(".css")?"text/css": rel.endsWith(".js")?"application/javascript":"text/plain";
             ctx.contentType(ct);
+            ctx.header("Cache-Control", "public, max-age=86400");
             ctx.result(in);
         });
 
@@ -1392,6 +1408,92 @@ public final class WebServerManager {
             }
             String msg = java.net.URLEncoder.encode("Deck deleted", "UTF-8");
             ctx.redirect("/web/decks?msg="+msg);
+        });
+
+        // stats dashboard
+        aj.get("/web/stats", ctx -> {
+            com.memorizer.db.StatsRepository repo = new com.memorizer.db.StatsRepository();
+            com.memorizer.db.StatsRepository.Stats s = repo.load();
+            com.memorizer.db.ChartRepository chartRepo = new com.memorizer.db.ChartRepository();
+            java.util.List<com.memorizer.db.ChartRepository.DailyReviewCount> daily = chartRepo.getDailyReviewCounts(7);
+            java.util.List<com.memorizer.db.ChartRepository.RatingDistribution> ratings = chartRepo.getRatingDistribution();
+            java.util.List<com.memorizer.db.ChartRepository.CardStatusDistribution> statuses = chartRepo.getCardStatusDistribution();
+
+            java.time.format.DateTimeFormatter mmdd = java.time.format.DateTimeFormatter.ofPattern("MM-dd");
+            java.time.LocalDate today = java.time.LocalDate.now();
+            java.util.Map<java.time.LocalDate, Integer> dailyMap = new java.util.LinkedHashMap<>();
+            for (int i = 6; i >= 0; i--) dailyMap.put(today.minusDays(i), 0);
+            for (com.memorizer.db.ChartRepository.DailyReviewCount d : daily) if (dailyMap.containsKey(d.date)) dailyMap.put(d.date, d.count);
+
+            // Daily review bars (pure CSS, no external JS)
+            int maxCount = 1;
+            for (int v : dailyMap.values()) if (v > maxCount) maxCount = v;
+            StringBuilder dailyBars = new StringBuilder("<div class='chart-bars'>");
+            for (java.util.Map.Entry<java.time.LocalDate, Integer> e : dailyMap.entrySet()) {
+                int pct = (int)(e.getValue() * 100.0 / maxCount);
+                dailyBars.append("<div class='chart-bar-col'>")
+                    .append("<div class='chart-bar-wrap'><div class='chart-bar-fill' style='height:").append(pct).append("%'></div></div>")
+                    .append("<div class='chart-bar-label'>").append(e.getKey().format(mmdd)).append("</div>")
+                    .append("<div class='chart-bar-val'>").append(e.getValue()).append("</div>")
+                    .append("</div>");
+            }
+            dailyBars.append("</div>");
+
+            // Rating distribution bars
+            int[] ratingArr = new int[5]; // index 1-4
+            for (com.memorizer.db.ChartRepository.RatingDistribution r : ratings) if (r.rating >= 1 && r.rating <= 4) ratingArr[r.rating] = r.count;
+            int maxRating = 1;
+            for (int i = 1; i <= 4; i++) if (ratingArr[i] > maxRating) maxRating = ratingArr[i];
+            String[] ratingLabels = {"", "Again", "Hard", "Good", "Easy"};
+            String[] ratingColors = {"", "#ef4444", "#f59e0b", "#22c55e", "#8b5cf6"};
+            StringBuilder ratingBars = new StringBuilder("<div class='chart-bars'>");
+            for (int i = 1; i <= 4; i++) {
+                int pct = (int)(ratingArr[i] * 100.0 / maxRating);
+                ratingBars.append("<div class='chart-bar-col'>")
+                    .append("<div class='chart-bar-wrap'><div class='chart-bar-fill' style='height:").append(pct).append("%;background:").append(ratingColors[i]).append("'></div></div>")
+                    .append("<div class='chart-bar-label'>").append(ratingLabels[i]).append("</div>")
+                    .append("<div class='chart-bar-val'>").append(ratingArr[i]).append("</div>")
+                    .append("</div>");
+            }
+            ratingBars.append("</div>");
+
+            // Status bar data
+            StringBuilder statusHtml = new StringBuilder();
+            int totalForPct = 0; for (com.memorizer.db.ChartRepository.CardStatusDistribution cs : statuses) totalForPct += cs.count;
+            String[] barColors = {"#3b82f6","#f59e0b","#22c55e","#94a3b8","#ef4444"};
+            int colorIdx = 0;
+            for (com.memorizer.db.ChartRepository.CardStatusDistribution cs : statuses) {
+                int pct = totalForPct > 0 ? (int)(cs.count * 100.0 / totalForPct) : 0;
+                String col = barColors[colorIdx % barColors.length]; colorIdx++;
+                statusHtml.append("<div class='stat-bar-row'>")
+                    .append("<span class='stat-label'>").append(escape(cs.status)).append("</span>")
+                    .append("<div class='stat-bar-bg'><div class='stat-bar-fill' style='width:").append(pct).append("%;background:").append(col).append("'></div></div>")
+                    .append("<span class='stat-count'>").append(cs.count).append("</span></div>");
+            }
+
+            String content = new StringBuilder()
+                .append("<nav class='crumbs'><a href='/web'>Home</a> / Stats</nav>")
+                .append("<h2>Statistics</h2>")
+                .append("<div class='stats-grid'>")
+                .append("<div class='stat-card'><div class='stat-num'>").append(s.dueCount).append("</div><div class='stat-name'>Due</div></div>")
+                .append("<div class='stat-card'><div class='stat-num'>").append(s.newCount).append("</div><div class='stat-name'>New</div></div>")
+                .append("<div class='stat-card'><div class='stat-num'>").append(s.todayReviews).append("</div><div class='stat-name'>Today</div></div>")
+                .append("<div class='stat-card'><div class='stat-num'>").append(s.totalCards).append("</div><div class='stat-name'>Cards</div></div>")
+                .append("<div class='stat-card'><div class='stat-num'>").append(s.totalNotes).append("</div><div class='stat-name'>Notes</div></div>")
+                .append("</div>")
+                .append("<h3 style='margin-top:24px'>Reviews – Last 7 Days</h3>")
+                .append(dailyBars.toString())
+                .append("<h3 style='margin-top:24px'>Rating Distribution</h3>")
+                .append(ratingBars.toString())
+                .append("<h3 style='margin-top:24px'>Card Status</h3>")
+                .append("<div class='stat-bars'>").append(statusHtml.toString()).append("</div>")
+                .toString();
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Stats");
+            m.put("serverMode", httpsActive?"https":"http");
+            m.put("flash", "");
+            m.put("content", content);
+            ctx.render("layout.html", m);
         });
 
         // study

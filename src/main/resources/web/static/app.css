@@ -45,6 +45,22 @@ button:hover,.btn:hover{transform:translateY(-1px); box-shadow:0 8px 22px rgba(0
 .toast{position:sticky;top:0;margin:0 auto 10px auto;max-width:1080px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#dbeafe;padding:10px 14px;border-radius:10px;backdrop-filter:blur(4px)}
 @keyframes fadeInUp { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none} }
 @media (prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} }
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin:12px 0}
+.stat-card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:14px;padding:18px;text-align:center;box-shadow:0 10px 26px rgba(0,0,0,.25);animation:fadeInUp .4s ease both}
+.stat-num{font-size:2rem;font-weight:700;color:var(--accent-2)}
+.stat-name{color:var(--muted);font-size:13px;margin-top:4px}
+.stat-bars{margin:8px 0}
+.stat-bar-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.stat-label{min-width:70px;font-size:13px;color:var(--muted)}
+.stat-bar-bg{flex:1;background:rgba(255,255,255,.06);border-radius:6px;height:12px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:6px;transition:width .4s ease}
+.stat-count{min-width:36px;text-align:right;font-size:13px;color:var(--muted)}
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding:8px 0;margin:8px 0}
+.chart-bar-col{display:flex;flex-direction:column;align-items:center;flex:1;min-width:36px}
+.chart-bar-wrap{flex:1;width:100%;display:flex;align-items:flex-end;background:rgba(255,255,255,.04);border-radius:6px 6px 0 0;overflow:hidden;max-height:80px}
+.chart-bar-fill{width:100%;background:rgba(59,130,246,0.7);border-radius:4px 4px 0 0;transition:height .4s ease;min-height:2px}
+.chart-bar-label{font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap}
+.chart-bar-val{font-size:11px;color:var(--fg);font-weight:500}
 
 /* Light theme variables */
 body[data-theme="light"]{
