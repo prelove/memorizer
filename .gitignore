@@ -70,3 +70,6 @@ Thumbs.db
 
 # 环境变量文件
 .env
+
+# Maven generated artifacts
+dependency-reduced-pom.xml
