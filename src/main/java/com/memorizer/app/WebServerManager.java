@@ -39,6 +39,19 @@ public final class WebServerManager {
         return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;").replace("'","&#39;");
     }
 
+    /** Derive a stable session token from the configured password (SHA-256 hex, first 32 chars). */
+    private static String webSessionToken(String pwd) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(("mz-web:" + pwd).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) sb.append(String.format("%02x", b));
+            return sb.substring(0, 32);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
+    }
+
     public synchronized void start() {
         if (running || starting) return;
         starting = true;
@@ -125,149 +138,7 @@ public final class WebServerManager {
         });
 
         // -------- Web (SSR) UI --------
-        // assets from classpath /web/static
-        app.get("/web/static/*", ctx -> {
-            String rel = ctx.path().substring("/web/static/".length());
-            if (rel.contains("..")) { ctx.status(400).result("bad"); return; }
-            java.io.InputStream in = getClass().getResourceAsStream("/web/static/" + rel);
-            if (in == null) { ctx.status(404).result("not found"); return; }
-            String ct = rel.endsWith(".css")?"text/css": rel.endsWith(".js")?"application/javascript":"text/plain";
-            ctx.contentType(ct);
-            ctx.header("Cache-Control", "public, max-age=86400");
-            ctx.result(in);
-        });
-
-        app.get("/web", ctx -> {
-            StringBuilder content = new StringBuilder();
-            content.append("<section class='grid'>")
-                    .append("<a class='card' href='/web/decks'><h3>Decks</h3><p>Manage your decks.</p></a>")
-                    .append("<a class='card' href='/web/notes'><h3>Browse</h3><p>Find and edit notes.</p></a>")
-                    .append("<a class='card' href='/web/study'><h3>Study</h3><p>Review cards in the browser.</p></a>")
-                    .append("</section>");
-            java.util.Map<String,Object> m = new java.util.HashMap<>();
-            m.put("title", "Memorizer Web");
-            m.put("serverMode", httpsActive?"https":"http");
-            m.put("content", content.toString());
-            ctx.render("layout.html", m);
-        });
-
-        app.get("/web/decks", ctx -> {
-            StringBuilder rows = new StringBuilder();
-            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("SELECT id,name FROM deck ORDER BY id ASC")){
-                try (ResultSet rs = ps.executeQuery()){
-                    while (rs.next()) {
-                        rows.append("<tr><td>").append(rs.getLong(1)).append("</td><td>")
-                                .append(escape(rs.getString(2))).append("</td></tr>");
-                    }
-                }
-            }
-            StringBuilder content = new StringBuilder();
-            content.append("<nav class='crumbs'><a href='/web'>Home</a> / Decks</nav>")
-                    .append("<h2>Decks</h2>")
-                    .append("<form class='row' method='post' action='/web/decks/create'>")
-                    .append("<input type='text' name='name' placeholder='New deck name' required />")
-                    .append("<button type='submit'>Create</button></form>")
-                    .append("<table class='table'><thead><tr><th>ID</th><th>Name</th></tr></thead><tbody>")
-                    .append(rows.toString())
-                    .append("</tbody></table>");
-            java.util.Map<String,Object> m = new java.util.HashMap<>();
-            m.put("title", "Decks");
-            m.put("serverMode", httpsActive?"https":"http");
-            m.put("content", content.toString());
-            ctx.render("layout.html", m);
-        });
-
-        app.post("/web/decks/create", ctx -> {
-            String name = ctx.formParam("name");
-            if (name != null && !name.trim().isEmpty()) {
-                try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("INSERT INTO deck(name) VALUES (?)")){
-                    ps.setString(1, name.trim()); ps.executeUpdate();
-                }
-            }
-            ctx.redirect("/web/decks");
-        });
-
-        app.get("/web/notes", ctx -> {
-            Long deckId = null; try { deckId = Long.valueOf(ctx.queryParam("deckId")); } catch (Exception ignored) {}
-            String sql = "SELECT n.id, COALESCE(d.name,''), n.front, n.back FROM note n LEFT JOIN deck d ON d.id=n.deck_id" + (deckId==null?"":" WHERE n.deck_id=?") + " ORDER BY n.id DESC LIMIT 200";
-            StringBuilder list = new StringBuilder();
-            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(sql)){
-                if (deckId != null) ps.setLong(1, deckId);
-                try (ResultSet rs = ps.executeQuery()){
-                    while (rs.next()) {
-                        list.append("<div class='note'><div class='note-head'><span class='deck'>")
-                                .append(escape(rs.getString(2))).append("</span><span class='id'>#")
-                                .append(rs.getLong(1)).append("</span></div><div class='front'>")
-                                .append(escape(rs.getString(3))).append("</div><div class='back'>")
-                                .append(escape(rs.getString(4))).append("</div></div>");
-                    }
-                }
-            }
-            String content = "<h2>Browse Notes</h2><div class='note-list'>" + list.toString() + "</div>";
-            java.util.Map<String,Object> m = new java.util.HashMap<>();
-            m.put("title", "Browse Notes");
-            m.put("serverMode", httpsActive?"https":"http");
-            m.put("content", content);
-            ctx.render("layout.html", m);
-        });
-
-        app.get("/web/study", ctx -> {
-            com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
-            StringBuilder content = new StringBuilder();
-            if (study == null) {
-                content.append("<h2>Study</h2><p class='muted'>No cards available.</p>");
-            } else {
-                boolean reveal = "1".equals(ctx.queryParam("a"));
-                java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.currentOrNextOrFallback();
-                if (!v.isPresent()) {
-                    content.append("<h2>Study</h2><p class='muted'>No cards available.</p>");
-                } else {
-                    com.memorizer.service.StudyService.CardView cv = v.get();
-                    content.append("<h2>Study</h2><div class='study-card'>")
-                            .append("<div class='front'>").append(escape(cv.getFront())).append("</div>");
-                    if (reveal) {
-                        content.append("<div class='back'>").append(escape(cv.getBack())).append("</div>");
-                        String rp = (cv.getReading()==null?"":escape(cv.getReading()));
-                        if (cv.getPos()!=null && !cv.getPos().trim().isEmpty()) rp += " <span class='pos'>["+escape(cv.getPos())+"]</span>";
-                        content.append("<div class='sub'>"+rp+"</div>");
-                        java.util.List<String> ex = cv.getExamples();
-                        if (ex != null && !ex.isEmpty()) {
-                            content.append("<ul class='examples'>");
-                            for (String s : ex) content.append("<li>").append(escape(s)).append("</li>");
-                            content.append("</ul>");
-                        }
-                        content.append("</div>");
-                        content.append("<form method='post' action='/web/study/rate' class='row rate'>")
-                               .append("<button name='rating' value='1' class='btn red'>Again</button>")
-                               .append("<button name='rating' value='2' class='btn amber'>Hard</button>")
-                               .append("<button name='rating' value='3' class='btn green'>Good</button>")
-                               .append("<button name='rating' value='4' class='btn violet'>Easy</button>")
-                               .append("</form>");
-                    } else {
-                        content.append("</div>");
-                        content.append("<div class='row' style='margin-top:12px'><a class='btn primary' href='/web/study?a=1'>Show Answer</a></div>");
-                    }
-                }
-            }
-            java.util.Map<String,Object> m = new java.util.HashMap<>();
-            m.put("title", "Study");
-            m.put("serverMode", httpsActive?"https":"http");
-            m.put("flash", "");
-            m.put("content", content.toString());
-            ctx.render("layout.html", m);
-        });
-
-        app.post("/web/study/rate", ctx -> {
-            com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
-            String r = ctx.formParam("rating");
-            if (study != null && r != null) {
-                int val; try { val = Integer.parseInt(r.trim()); } catch (Exception e) { val = 0; }
-                com.memorizer.model.Rating rating;
-                if (val == 1) rating = com.memorizer.model.Rating.AGAIN; else if (val == 2) rating = com.memorizer.model.Rating.HARD; else if (val == 3) rating = com.memorizer.model.Rating.GOOD; else rating = com.memorizer.model.Rating.EASY;
-                study.rate(rating);
-            }
-            ctx.redirect("/web/study");
-        });
+        registerSsrRoutes(app);
 
         // server info
         app.get("/api/server/info", ctx -> {
@@ -1036,6 +907,43 @@ public final class WebServerManager {
 
     /** Register SSR web routes on the provided app instance. */
     private void registerSsrRoutes(Javalin aj) {
+        // T-SEC-01: Optional web UI password protection
+        aj.before("/web/*", ctx -> {
+            if ("/web/login".equals(ctx.path())) return;
+            String pwd = com.memorizer.app.Config.get("app.web.auth.password", "");
+            if (pwd == null || pwd.trim().isEmpty()) return;
+            String cookie = ctx.cookie("mz-web-session");
+            String expected = webSessionToken(pwd);
+            if (expected.equals(cookie)) return;
+            ctx.redirect("/web/login");
+        });
+        aj.get("/web/login", ctx -> {
+            String msg = ctx.queryParam("msg");
+            String flashHtml = (msg != null && !msg.isEmpty()) ? "<div class='toast'>"+escape(msg)+"</div>" : "";
+            String content = "<h2>Login</h2><form method='post' action='/web/login' class='col' style='max-width:320px'>"
+                + "<input type='password' name='pwd' placeholder='Password' required />"
+                + "<button class='btn primary' type='submit' style='margin-top:8px'>Login</button></form>";
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("title", "Login"); m.put("serverMode", httpsActive?"https":"http");
+            m.put("flash", flashHtml); m.put("content", content);
+            ctx.render("layout.html", m);
+        });
+        aj.post("/web/login", ctx -> {
+            String pwd = com.memorizer.app.Config.get("app.web.auth.password", "");
+            String entered = ctx.formParam("pwd");
+            if (pwd != null && !pwd.trim().isEmpty() && pwd.equals(entered)) {
+                javax.servlet.http.Cookie c = new javax.servlet.http.Cookie("mz-web-session", webSessionToken(pwd));
+                c.setMaxAge(86400);
+                c.setHttpOnly(true);
+                c.setSecure(true);
+                c.setPath("/");
+                ctx.res.addCookie(c);
+                ctx.redirect("/web");
+            } else {
+                ctx.redirect("/web/login?msg=Invalid+password");
+            }
+        });
+
         // assets
         aj.get("/web/static/*", ctx -> {
             String rel = ctx.path().substring("/web/static/".length());
@@ -1499,45 +1407,72 @@ public final class WebServerManager {
         // study
         aj.get("/web/study", ctx -> {
             com.memorizer.service.StudyService study = com.memorizer.app.AppContext.getStudy();
+            // Today's progress
+            int todayDone = 0; int todayTotal = 0;
+            try (PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement(
+                    "SELECT COUNT(*), SUM(CASE WHEN status=1 THEN 1 ELSE 0 END) FROM study_plan WHERE plan_date=CURRENT_DATE")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) { todayTotal = rs.getInt(1); todayDone = rs.getInt(2); }
+                }
+            } catch (Exception ignored) {}
+            int progressPct = todayTotal > 0 ? (int)(todayDone * 100.0 / todayTotal) : 0;
+            String progressHtml = "<div style='margin:8px 0 14px'>"
+                + "<div style='font-size:13px;color:var(--muted);margin-bottom:4px'>Today: " + todayDone + " / " + todayTotal + " cards</div>"
+                + "<div style='background:rgba(255,255,255,.06);border-radius:6px;height:8px;overflow:hidden'>"
+                + "<div style='height:100%;width:" + progressPct + "%;background:var(--accent);border-radius:6px;transition:width .4s ease'></div>"
+                + "</div></div>";
             StringBuilder content = new StringBuilder();
+            content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2>");
+            content.append(progressHtml);
             if (study == null) {
-                content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2><p class='muted'>No cards available.</p>");
+                content.append("<p class='muted'>Study session not active. Please open the desktop app to start a session.</p>");
             } else {
                 boolean reveal = "1".equals(ctx.queryParam("a"));
                 java.util.Optional<com.memorizer.service.StudyService.CardView> v = study.currentOrNextOrFallback();
                 if (!v.isPresent()) {
-                    content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2><p class='muted'>No cards available.</p>");
+                    content.append("<p class='muted'>🎉 No more cards to review right now. Come back later!</p>");
                 } else {
                     com.memorizer.service.StudyService.CardView cv = v.get();
-                    content.append("<nav class='crumbs'><a href='/web'>Home</a> / Study</nav><h2>Study</h2><div class='study-card'>")
+                    content.append("<div class='study-card' id='studyCard'>")
                             .append("<div class='front'>").append(escape(cv.getFront())).append("</div>");
                     if (reveal) {
                         content.append("<div class='back'>").append(escape(cv.getBack())).append("</div>");
                         String rp = (cv.getReading()==null?"":escape(cv.getReading()));
                         if (cv.getPos()!=null && !cv.getPos().trim().isEmpty()) rp += " <span class='pos'>["+escape(cv.getPos())+"]</span>";
-                        content.append("<div class='sub'>"+rp+"</div>");
+                        if (!rp.isEmpty()) content.append("<div class='sub'>").append(rp).append("</div>");
                         java.util.List<String> ex = cv.getExamples();
                         if (ex != null && !ex.isEmpty()) {
                             content.append("<ul class='examples'>");
                             for (String s : ex) content.append("<li>").append(escape(s)).append("</li>");
                             content.append("</ul>");
                         }
-                        content.append("<form method='post' action='/web/study/rate' class='row rate'>")
-                                .append("<button name='rating' value='1' class='btn red'>Again</button>")
-                                .append("<button name='rating' value='2' class='btn amber'>Hard</button>")
-                                .append("<button name='rating' value='3' class='btn green'>Good</button>")
-                                .append("<button name='rating' value='4' class='btn violet'>Easy</button>")
+                        content.append("<form id='rateForm' method='post' action='/web/study/rate' class='row rate'>")
+                                .append("<button id='r1' name='rating' value='1' class='btn red'>1 Again</button>")
+                                .append("<button id='r2' name='rating' value='2' class='btn amber'>2 Hard</button>")
+                                .append("<button id='r3' name='rating' value='3' class='btn green'>3 Good</button>")
+                                .append("<button id='r4' name='rating' value='4' class='btn violet'>4 Easy</button>")
                                 .append("</form>");
+                        // Keyboard shortcuts for rating
+                        content.append("<script>(function(){document.addEventListener('keydown',function(e){")
+                               .append("if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;")
+                               .append("if(e.key==='1')document.getElementById('r1').click();")
+                               .append("else if(e.key==='2')document.getElementById('r2').click();")
+                               .append("else if(e.key==='3')document.getElementById('r3').click();")
+                               .append("else if(e.key==='4')document.getElementById('r4').click();")
+                               .append("});})();</script>");
                     } else {
-                        content.append("<a class='btn primary' href='/web/study?a=1'>Show Answer</a>");
+                        content.append("<a id='showBtn' class='btn primary' href='/web/study?a=1'>Show Answer (Space)</a>");
+                        // Keyboard shortcut: Space/Enter to show answer
+                        content.append("<script>(function(){document.addEventListener('keydown',function(e){")
+                               .append("if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;")
+                               .append("if(e.key===' '||e.key==='Enter'){e.preventDefault();document.getElementById('showBtn').click();}});})()</script>");
                     }
                     content.append("</div>");
                 }
             }
             java.util.Map<String,Object> m = new java.util.HashMap<>();
-            m.put("title", "Study");
-            m.put("serverMode", httpsActive?"https":"http");
-            m.put("content", content.toString());
+            m.put("title", "Study"); m.put("serverMode", httpsActive?"https":"http");
+            m.put("flash", ""); m.put("content", content.toString());
             ctx.render("layout.html", m);
         });
         aj.post("/web/study/rate", ctx -> {

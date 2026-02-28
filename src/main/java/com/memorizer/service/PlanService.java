@@ -75,18 +75,19 @@ public class PlanService {
                     ps.executeUpdate();
                 }
 
-                // Add DUE
-                List<Long> due = findDueCards(200);
+                // Add DUE — track seen note_ids to bury siblings
+                java.util.Set<Long> seenNoteIds = new java.util.HashSet<>();
+                List<Long> due = filterSiblings(findDueCards(200), seenNoteIds);
                 int seq = maxOrder(today) + 1;
                 for (Long id : due) insert(today, id, null, Kind.DUE.v, seq++);
 
-                // Add LEECH
-                List<Long> leech = findLeechCards(leechThresh, 100);
+                // Add LEECH — skip cards whose note is already represented today
+                List<Long> leech = filterSiblings(findLeechCards(leechThresh, 100), seenNoteIds);
                 seq = maxOrder(today) + 1;
                 for (Long id : leech) insert(today, id, null, Kind.LEECH.v, seq++);
 
-                // Add NEW up to dailyNew
-                List<Long> news = findNewCards(dailyNew);
+                // Add NEW up to dailyNew — skip siblings
+                List<Long> news = filterSiblings(findNewCards(dailyNew), seenNoteIds);
                 seq = maxOrder(today) + 1;
                 for (Long id : news) insert(today, id, null, Kind.NEW.v, seq++);
 
@@ -327,6 +328,34 @@ public class PlanService {
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findLeechCards failed", e); }
         return out;
+    }
+
+    // ---- sibling-burying helpers (T-SRS-03) ----
+
+    /** Return the note_id for each card_id in the list. */
+    private List<Long> noteIdsForCards(List<Long> cardIds) {
+        if (cardIds.isEmpty()) return new ArrayList<>();
+        List<Long> out = new ArrayList<>();
+        StringBuilder sb = new StringBuilder("SELECT note_id FROM card WHERE id IN (");
+        for (int i = 0; i < cardIds.size(); i++) { if (i > 0) sb.append(','); sb.append('?'); }
+        sb.append(')');
+        try (PreparedStatement ps = Database.get().prepareStatement(sb.toString())) {
+            for (int i = 0; i < cardIds.size(); i++) ps.setLong(i + 1, cardIds.get(i));
+            try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
+        } catch (SQLException e) { throw new RuntimeException("noteIdsForCards failed", e); }
+        return out;
+    }
+
+    /** Filter out cards whose note_id is already in seenNoteIds; updates seenNoteIds in-place. */
+    private List<Long> filterSiblings(List<Long> cardIds, java.util.Set<Long> seenNoteIds) {
+        if (cardIds.isEmpty()) return cardIds;
+        List<Long> noteIds = noteIdsForCards(cardIds);
+        List<Long> result = new ArrayList<>();
+        for (int i = 0; i < cardIds.size(); i++) {
+            long noteId = noteIds.get(i);
+            if (seenNoteIds.add(noteId)) result.add(cardIds.get(i));
+        }
+        return result;
     }
 
     // ---- deck filter helpers ----

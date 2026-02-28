@@ -95,6 +95,7 @@ public class StealthStage extends Stage {
             else if (ev.getCode() == KeyCode.DIGIT4) rateAndMaybeNext(Rating.EASY);
             else if (ev.getCode() == KeyCode.ESCAPE) hideWithSnooze();
             else if (ev.getCode() == KeyCode.M) setUIMode(mode == UIMode.MINI ? UIMode.NORMAL : UIMode.MINI);
+            else if (ev.getCode() == KeyCode.A) DialogFactory.showNewEntryDialog(this, msg -> {});
         });
 
         // init helpers

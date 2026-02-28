@@ -93,6 +93,44 @@ public class PlanServiceTest {
     }
 
     @Test
+    void shouldBurySiblingsInTodayPlan() throws Exception {
+        // Create one note with TWO cards (siblings), both due
+        NoteRepository nr = new NoteRepository();
+        CardRepository cr = new CardRepository();
+        Config.set("app.deck.filter", "all");
+        Database.stop(); // re-open the same test DB to pick up existing schema/data
+
+        Note n = new Note();
+        n.deckId = deckA; n.front = "Sibling"; n.back = "SiblingBack";
+        n.reading = null; n.pos = null; n.examples = null; n.tags = null;
+        long sibNoteId = nr.insert(n);
+        long card1 = cr.insertForNote(sibNoteId);
+        long card2 = cr.insertForNote(sibNoteId);
+        // Make both cards due now
+        for (long cid : new long[]{card1, card2}) {
+            try (java.sql.PreparedStatement ps = com.memorizer.db.Database.get().prepareStatement("UPDATE card SET due_at=? WHERE id=?")) {
+                ps.setTimestamp(1, Timestamp.from(Instant.now()));
+                ps.setLong(2, cid);
+                ps.executeUpdate();
+            }
+        }
+
+        PlanService ps = new PlanService();
+        ps.buildToday();
+
+        // Count how many times sibNoteId appears in today's plan
+        long sibCount;
+        try (java.sql.PreparedStatement stmt = com.memorizer.db.Database.get().prepareStatement(
+                "SELECT COUNT(*) FROM study_plan p JOIN card c ON c.id=p.card_id WHERE p.plan_date=CURRENT_DATE AND c.note_id=?")) {
+            stmt.setLong(1, sibNoteId);
+            try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                rs.next(); sibCount = rs.getLong(1);
+            }
+        }
+        assertEquals(1, sibCount, "Only one sibling card should appear in today's plan");
+    }
+
+    @Test
     void shouldRebuildPlanOnDeckSwitch() {
         PlanService ps = new PlanService();
         // Start with Deck B only
