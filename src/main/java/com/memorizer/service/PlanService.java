@@ -275,13 +275,19 @@ public class PlanService {
     }
 
     private void insert(LocalDate day, long cardId, Long deckId, int kind, int orderNo) {
+        // INSERT only if no row exists yet for (plan_date, card_id) – never reset status of
+        // cards already in today's plan (done, skipped, etc.) when rebuilding.
         try (PreparedStatement ps = Database.get().prepareStatement(
-                "MERGE INTO study_plan(plan_date, card_id, deck_id, kind, status, order_no) KEY(plan_date, card_id) VALUES (?,?,?,?,0,?)")) {
+                "INSERT INTO study_plan(plan_date, card_id, deck_id, kind, status, order_no) " +
+                "SELECT ?,?,?,?,0,? WHERE NOT EXISTS " +
+                "(SELECT 1 FROM study_plan WHERE plan_date=? AND card_id=?)")) {
             ps.setDate(1, java.sql.Date.valueOf(day));
             ps.setLong(2, cardId);
             if (deckId == null) ps.setNull(3, Types.BIGINT); else ps.setLong(3, deckId);
             ps.setInt(4, kind);
             ps.setInt(5, orderNo);
+            ps.setDate(6, java.sql.Date.valueOf(day));
+            ps.setLong(7, cardId);
             ps.executeUpdate();
         } catch (SQLException e) { throw new RuntimeException("insert plan failed", e); }
     }
