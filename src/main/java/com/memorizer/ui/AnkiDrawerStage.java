@@ -14,7 +14,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
@@ -186,25 +185,38 @@ public class AnkiDrawerStage extends Stage {
     }
 
     private void applyGeometry() {
-        Rectangle2D vis = Screen.getPrimary().getVisualBounds();
+        // Use the screen under the pointer (correct on multi-monitor / HiDPI setups).
+        // jfxVisualBounds returns logical pixels — same coordinate space as Stage.setX/Y/Width/Height.
+        java.awt.GraphicsDevice activeDevice = ScreenUtil.activeDevice();
+        Rectangle2D vis = ScreenUtil.jfxVisualBounds(activeDevice);
         double screenW = vis.getWidth();
         double screenH = vis.getHeight();
 
-        double maxH = Math.max(180, Math.min(screenH * 0.40, 260)); // default: min(260, 35%) with max 40%
-        double prefH = Math.min(260, screenH * 0.35);
+        // Scale base heights by user font-scale so the drawer feels proportionate
+        // on displays running without OS DPI scaling.
+        double fs = com.memorizer.app.Config.getFontScale();
+        double prefH = Math.min(260 * fs, screenH * 0.35);
         double widthFrac = 0.9;
         double w = Math.max(480, screenW * widthFrac);
 
         setWidth(w);
         setHeight(prefH);
-        setMinHeight(180);
+        setMinHeight(180 * fs);
         setMaxHeight(screenH * 0.40);
 
-        double gap = 10; // 10px gap to taskbar
+        // Position above the taskbar on the active screen.
+        double gap = 10; // logical-px gap to taskbar
         try {
-            ScreenUtil.Rect tb = ScreenUtil.taskbarRect();
-            setX(tb.x + (tb.w - w) / 2.0);
-            setY(tb.y - prefH - gap);
+            ScreenUtil.TaskbarInfo tb = ScreenUtil.taskbarFor(activeDevice);
+            // Convert AWT taskbar rect to JavaFX logical coords via AWT/JFX bounds ratio
+            java.awt.Rectangle awtBounds = activeDevice.getDefaultConfiguration().getBounds();
+            double hRatio = (awtBounds.width  > 0) ? screenW / awtBounds.width  : 1.0;
+            double vRatio = (awtBounds.height > 0) ? screenH / awtBounds.height : 1.0;
+            double tbX = tb.rect.x * hRatio;
+            double tbY = tb.rect.y * vRatio;
+            double tbW = tb.rect.w * hRatio;
+            setX(tbX + (tbW - w) / 2.0);
+            setY(tbY - prefH - gap);
         } catch (Throwable t) {
             setX(vis.getMinX() + (screenW - w) / 2.0);
             setY(vis.getMinY() + screenH - prefH - gap);
