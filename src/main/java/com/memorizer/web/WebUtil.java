@@ -8,6 +8,13 @@ public final class WebUtil {
                 .replace(">","&gt;").replace("\"","&quot;")
                 .replace("'","&#39;");
     }
+    /** Send a unified JSON error response: {"error": msg, "code": code} */
+    public static void error(io.javalin.http.Context ctx, int status, String code, String msg) {
+        java.util.Map<String, String> m = new java.util.LinkedHashMap<>();
+        m.put("error", msg);
+        m.put("code", code);
+        ctx.status(status).json(m);
+    }
     public static String buildPairingPayload(String host, int port, String token, boolean https) {
         String scheme = https ? "https" : "http";
         return String.format("{\"server\":\"%s://%s:%d\",\"token\":\"%s\"}", scheme, host, port, token);
