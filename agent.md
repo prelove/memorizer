@@ -258,19 +258,21 @@ This document reflects the current project state and the focused next tasks. Com
 
 ---
 
-## 11) Next Tasks (Unfinished Only)
+## 11) Next Tasks (Completed / Remaining)
 
 - Desktop API parity
   - [Done] `POST /api/cards/delete` added to delete by `cardId` with dependent rows cleanup.
 - Study UX options
-  - Preference to hide POS pre‑flip (toggle in Preferences; default current behavior maintained).
+  - [Done] Preference to hide POS/Reading in stealth banner (`app.ui.stealth.hide-pos`; toggle in Preferences → Stealth tab).
 - Pairing UX polish
-  - Add illustrated steps/images for iOS/Android on `/pair` and in desktop “Connect” panel to guide TLS/permissions.
+  - [Done] Illustrated iOS/Android setup steps on `/pair` page (CA install + PWA pairing steps).
 - Build/CI hygiene
-  - Verify `settings.xml` uses Maven Central in CI; remove reliance on local Nexus mirrors; document CI commands in README.
+  - [Done] `settings.xml` uses Maven Central directly; no Nexus mirrors. `pom.xml` declares Central repositories explicitly.
 - Tests
-  - Add JUnit 5 tests: PlanService deck filter and counts; Stealth flip‑cycle states (Normal 0/1/2; Mini 0/1/2/3); repository insert/update paths; minimal API endpoint tests where feasible.
+  - [Done] PlanService deck filter and counts (`PlanServiceTest`).
+  - [Done] Stealth flip-cycle states (`FlipStateManagerTest`).
+  - [Done] Repository insert/update paths (`RepositoryTest`).
+  - [Done] Minimal API endpoint tests (`WebApiTest`): health, decks CRUD, cards CRUD, reviews.
 - Optional/Stretch
-  - Persist per‑deck “challenge last size” hint (e.g., `app.study.challenge.<deckId>.lastSize`).
-
+  - Persist per-deck "challenge last size" hint (e.g., `app.study.challenge.<deckId>.lastSize`).
 All prior Stage A/B items are complete and should not be re‑implemented.
