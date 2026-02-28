@@ -106,12 +106,21 @@ public class Scheduler {
     private int deferBusyMinutes() {
         return com.memorizer.app.Config.getInt("app.study.defer-when-busy-minutes", 3);
     }
-    
+
+    private long periodicFallbackMinutes() {
+        int min = Config.getInt("app.study.min-interval-minutes", 20);
+        int max = Config.getInt("app.study.max-interval-minutes", 60);
+        if (max < min) max = min;
+        return min + rnd.nextInt(Math.max(1, (max - min) + 1));
+    }
+
     private void tick() {
-        long nextDelayMin = nextDelayMinutes();
+        // Default: periodic interval. Overridden below on each code path.
+        long nextDelayMin = periodicFallbackMinutes();
         try {
             if (paused) {
                 log.debug("tick skipped (paused).");
+                // Keep periodic interval while paused to avoid tight polling loops.
                 return;
             }
 
@@ -148,6 +157,10 @@ public class Scheduler {
             } else {
                 log.info("No cards to show (due/new empty{}).", forceWhenEmpty ? "" : ", fallback disabled");
             }
+
+            // Recompute delay AFTER the card is shown so we base the next wake-up on
+            // post-show state (avoids immediately re-firing on the card we just surfaced).
+            nextDelayMin = nextDelayMinutes();
         } catch (Exception e) {
             log.warn("tick error: {}", e.toString());
         } finally {

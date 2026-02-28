@@ -29,7 +29,6 @@ public final class TrayManager {
                 return t;
             });
     private MenuItem planSummaryItem;
-    private MenuItem planNextItem;
 
     private final MenuItem miPause = new MenuItem("Pause Reminders");
     private final MenuItem miResume = new MenuItem("Resume Reminders");
@@ -50,10 +49,7 @@ public final class TrayManager {
         // Top-level items
         MenuItem miOpenMain = new MenuItem("Open Main Window");
         planSummaryItem = new MenuItem("Plan: -/-");
-        planNextItem = new MenuItem("Next: -");
         MenuItem miShow = new MenuItem("Show Stealth Now");
-        MenuItem miSnooze = new MenuItem("Snooze 10 min");
-        MenuItem miSkip = new MenuItem("Skip Current (S)");
 
         // Banner mode (Normal/Mini)
         Menu modeMenu = new Menu("Mode");
@@ -76,18 +72,21 @@ public final class TrayManager {
         mStudyMode.add(miFixed);
         mStudyMode.add(miChallenge);
 
-        // Study plan helpers
+        // Study plan helpers (snooze/skip consolidated here; top-level stays clean)
         Menu mPlan = new Menu("Plan");
         MenuItem miRebuild = new MenuItem("Rebuild Today");
         MenuItem miAppendChallenge = new MenuItem("Append Challenge Batch");
         MenuItem miRoll = new MenuItem("Roll Remaining");
         MenuItem miClearChal = new MenuItem("Clear Challenge");
-        MenuItem miPlanStatus = new MenuItem("Plan Status");
+        MenuItem miSnooze = new MenuItem("Snooze 10 min");
+        MenuItem miSkip = new MenuItem("Skip Current");
         mPlan.add(miRebuild);
         mPlan.add(miAppendChallenge);
         mPlan.add(miRoll);
         mPlan.add(miClearChal);
-        mPlan.add(miPlanStatus);
+        mPlan.addSeparator();
+        mPlan.add(miSnooze);
+        mPlan.add(miSkip);
 
         // Scheduler mode (due | periodic)
         Menu mScheduler = new Menu("Scheduler");
@@ -112,11 +111,8 @@ public final class TrayManager {
         menu.add(mPlan);
         menu.add(mScheduler);
         menu.add(planSummaryItem);
-        menu.add(planNextItem);
-        menu.add(miSkip);
         menu.add(miPause);
         menu.add(miResume);
-        menu.add(miSnooze);
         menu.addSeparator();
         menu.add(miImport);
         menu.add(miTemplate);
@@ -225,22 +221,14 @@ public final class TrayManager {
         miResume.addActionListener(e -> { scheduler.resume(); updatePauseMenu(); });
         miSkip.addActionListener(e -> Platform.runLater(() -> {
             stealthStage.skipCurrent();
-            updatePlanMenu(planSummaryItem, planNextItem);
+            updatePlanMenu();
         }));
         miSnooze.addActionListener(e -> scheduler.snooze(Config.getInt("app.study.snooze-minutes", 10)));
 
-        miRebuild.addActionListener(e -> { study.rebuildTodayPlan(); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
-        miAppendChallenge.addActionListener(e -> { study.appendChallengeBatch(Config.getInt("app.study.challenge-batch-size", 10)); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
-        miRoll.addActionListener(e -> { study.rollRemainingToday(); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
-        miClearChal.addActionListener(e -> { study.clearChallengeToday(); updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); });
-        miPlanStatus.addActionListener(e -> {
-            try {
-                com.memorizer.service.PlanService.Counts pc = study.planCounts();
-                trayIcon.displayMessage("Plan Status", "Pending: " + pc.pending + "\nDone: " + pc.done + "\nTotal: " + pc.total, TrayIcon.MessageType.INFO);
-            } catch (Exception ex) {
-                trayIcon.displayMessage("Plan Status", "Unavailable", TrayIcon.MessageType.INFO);
-            }
-        });
+        miRebuild.addActionListener(e -> { study.rebuildTodayPlan(); updatePlanTooltip(); updatePlanMenu(); });
+        miAppendChallenge.addActionListener(e -> { study.appendChallengeBatch(Config.getInt("app.study.challenge-batch-size", 10)); updatePlanTooltip(); updatePlanMenu(); });
+        miRoll.addActionListener(e -> { study.rollRemainingToday(); updatePlanTooltip(); updatePlanMenu(); });
+        miClearChal.addActionListener(e -> { study.clearChallengeToday(); updatePlanTooltip(); updatePlanMenu(); });
 
         miImport.addActionListener(e -> TrayActions.openImportDialog());
         miTemplate.addActionListener(e -> TrayActions.saveTemplateDialog());
@@ -259,9 +247,9 @@ public final class TrayManager {
 
         updatePauseMenu();
         updatePlanTooltip();
-        updatePlanMenu(planSummaryItem, planNextItem);
+        updatePlanMenu();
         planTicker.scheduleAtFixedRate(() -> {
-            try { updatePlanTooltip(); updatePlanMenu(planSummaryItem, planNextItem); } catch (Exception ignored) {}
+            try { updatePlanTooltip(); updatePlanMenu(); } catch (Exception ignored) {}
         }, 60, 60, java.util.concurrent.TimeUnit.SECONDS);
 
         try { tray.add(trayIcon); } catch (AWTException ex) { throw new RuntimeException("Failed to add tray icon", ex); }
@@ -276,7 +264,7 @@ public final class TrayManager {
     public void updatePlanTooltip() {
         try {
             com.memorizer.service.PlanService.Counts pc = study.planCounts();
-            trayIcon.setToolTip("Memorizer  EPlan " + pc.pending + "/" + pc.total);
+            trayIcon.setToolTip("Memorizer  Plan " + pc.pending + "/" + pc.total);
         } catch (Exception ignored) {
             trayIcon.setToolTip("Memorizer");
         }
@@ -297,17 +285,13 @@ public final class TrayManager {
         };
     }
 
-    /** Refresh live plan menu labels: total/pending and next front preview. */
-    private void updatePlanMenu(MenuItem miPlanSummary, MenuItem miPlanNext) {
+    /** Refresh the plan summary label with today's pending/total counts. */
+    private void updatePlanMenu() {
         try {
             com.memorizer.service.PlanService.Counts pc = study.planCounts();
-            miPlanSummary.setLabel("Plan: " + pc.pending + "/" + pc.total);
-            String next = study.previewNextFromPlanFront().orElse("-");
-            if (next.length() > 30) next = next.substring(0, 30) + "…";
-            miPlanNext.setLabel("Next: " + next);
+            planSummaryItem.setLabel("Plan: " + pc.pending + "/" + pc.total);
         } catch (Exception ignored) {
-            miPlanSummary.setLabel("Plan: -/-");
-            miPlanNext.setLabel("Next: -");
+            planSummaryItem.setLabel("Plan: -/-");
         }
     }
 
