@@ -84,5 +84,17 @@ public final class Config {
         } catch (IOException ignored) {}
     }
 
+    /**
+     * Parse and clamp the {@code app.ui.font-scale} value.
+     * Valid range: 0.7 – 1.5.  Returns 1.0 on parse error or out-of-range input.
+     */
+    public static double getFontScale() {
+        String raw = get("app.ui.font-scale", "1.0");
+        try {
+            double v = Double.parseDouble(raw.trim());
+            return (v >= 0.7 && v <= 1.5) ? v : 1.0;
+        } catch (Throwable ignored) { return 1.0; }
+    }
+
     private Config() {}
 }

@@ -2,6 +2,7 @@ package com.memorizer.ui;
 
 import com.memorizer.model.Rating;
 import com.memorizer.service.StudyService;
+import com.memorizer.util.ScreenUtil;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -14,7 +15,6 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 /** Centered, standard study window (non-stealth) for daily practice. */
@@ -94,6 +94,13 @@ import javafx.stage.Stage;
         sp.setFitToWidth(true); sp.setFitToHeight(false);
         sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
         Scene scene = new Scene(sp);
+        // Apply cross-platform CJK font stack so study content uses the same
+        // font family as the stealth banner and avoids raw Modena "rigidity".
+        scene.getRoot().setStyle(
+                "-fx-font-family: 'Segoe UI','Microsoft YaHei UI','Microsoft YaHei',"
+                + "'-apple-system','PingFang SC','Hiragino Sans GB','Hiragino Sans',"
+                + "'Noto Sans CJK SC','Source Han Sans SC','Noto Sans SC',"
+                + "'WenQuanYi Micro Hei','Noto Sans',Arial,sans-serif;");
         scene.setOnKeyPressed(ev -> {
             if (ev.getCode() == KeyCode.SPACE) toggleFace();
             if (ev.getCode() == KeyCode.DIGIT1) { rate(Rating.AGAIN); loadNext(); }
@@ -103,29 +110,26 @@ import javafx.stage.Stage;
         });
         setScene(scene);
 
-        // Size to OS work area when showing so bottom edge is flush with taskbar
-        setOnShown(e -> {
-            javafx.geometry.Rectangle2D vb = Screen.getPrimary().getVisualBounds();
-            setX(Math.floor(vb.getMinX()));
-            setY(Math.floor(vb.getMinY()));
-            setWidth(Math.ceil(vb.getWidth()));
-            setHeight(Math.ceil(vb.getHeight() + 1));
-        });
-
-        // Stage will be sized to work area in showAndFocus()
+        // Size to the active screen's work area (respects multi-monitor setups)
+        setOnShown(e -> fitToActiveScreen());
 
         loadNext();
     }
 
     public void showAndFocus() {
-        // Fit to OS work area so bottom edge is flush with taskbar
-        javafx.geometry.Rectangle2D vb = Screen.getPrimary().getVisualBounds();
+        fitToActiveScreen();
+        if (!isShowing()) show();
+        toFront(); requestFocus(); setIconified(false);
+    }
+
+    /** Fit this window to the visual bounds of the screen the pointer is on. */
+    private void fitToActiveScreen() {
+        javafx.geometry.Rectangle2D vb =
+                ScreenUtil.jfxVisualBounds(ScreenUtil.activeDevice());
         setX(Math.floor(vb.getMinX()));
         setY(Math.floor(vb.getMinY()));
         setWidth(Math.ceil(vb.getWidth()));
         setHeight(Math.ceil(vb.getHeight() + 1));
-        if (!isShowing()) show();
-        toFront(); requestFocus(); setIconified(false);
     }
 
     /** Show a specific card by id in this window. */

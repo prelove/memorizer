@@ -2,6 +2,7 @@ package com.memorizer.ui;
 
 import com.memorizer.app.Scheduler;
 import com.memorizer.service.StudyService;
+import com.memorizer.util.ScreenUtil;
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Rectangle2D;
@@ -17,7 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Region;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -138,9 +138,10 @@ public class MainStage extends Stage {
     }
 
     private void sizeToHalfScreen() {
-        Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
+        // Use the screen the pointer is on (correct on multi-monitor / HiDPI setups).
+        Rectangle2D visualBounds = ScreenUtil.jfxVisualBounds(ScreenUtil.activeDevice());
         double width = Math.ceil(visualBounds.getWidth() / 2.0);
-        // 增加高度1/4
+        // Height: slightly taller than half so the window feels spacious
         double height = Math.ceil(visualBounds.getHeight() / 2.0 * 1.52);
         double x = Math.floor(visualBounds.getMinX() + (visualBounds.getWidth() - width) / 2.0);
         double y = Math.floor(visualBounds.getMinY() + (visualBounds.getHeight() - height) / 2.0);

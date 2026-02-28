@@ -70,5 +70,52 @@ public final class ScreenUtil {
         return taskbarFor(activeDevice());
     }
 
+    /**
+     * Returns the effective UI scale factor (physical pixels per logical pixel)
+     * for the primary display.
+     *
+     * Uses the JavaFX Screen API when available (most accurate, already accounts
+     * for OS HiDPI settings). Falls back to AWT DPI / 96 ratio.
+     *
+     * NOTE: JavaFX stage coordinates are in *logical* pixels — do NOT use this
+     * value to multiply window width/height. It is only intended for computing
+     * font sizes or other content-level metrics that need to know the density.
+     */
+    public static double uiScaleFactor() {
+        // Prefer JavaFX Screen API: getOutputScaleX() == physical/logical ratio
+        try {
+            double sx = javafx.stage.Screen.getPrimary().getOutputScaleX();
+            if (sx >= 1.0) return sx;
+        } catch (Throwable ignored) {}
+        // AWT fallback
+        try {
+            int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
+            return Math.max(1.0, dpi / 96.0);
+        } catch (Throwable ignored) {}
+        return 1.0;
+    }
+
+    /**
+     * Returns the JavaFX visual bounds (logical pixels) for the screen that
+     * best corresponds to the given AWT GraphicsDevice.
+     * Falls back to the primary JavaFX Screen if no match is found.
+     */
+    public static javafx.geometry.Rectangle2D jfxVisualBounds(GraphicsDevice gd) {
+        try {
+            Rectangle awtBounds = gd.getDefaultConfiguration().getBounds();
+            double cx = awtBounds.getCenterX();
+            double cy = awtBounds.getCenterY();
+            // Walk all JavaFX screens and pick the one whose bounds contain the AWT centre.
+            // The AWT centre is in AWT coordinate space; JavaFX Screen uses logical coordinates.
+            // They are the same on Java 9+ with DPI-aware AWT (JEP 263 / JEP 272).
+            for (javafx.stage.Screen s : javafx.stage.Screen.getScreens()) {
+                if (s.getBounds().contains(cx, cy)) {
+                    return s.getVisualBounds();
+                }
+            }
+        } catch (Throwable ignored) {}
+        return javafx.stage.Screen.getPrimary().getVisualBounds();
+    }
+
     private ScreenUtil(){}
 }

@@ -1,6 +1,14 @@
 /* Stealth banner theme (cross‑platform defaults) */
 /* Theme containers */
-.stealth-root { -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Helvetica Neue", Arial, sans-serif; }
+.stealth-root {
+  /* Cross-platform font stack: Windows → macOS → Linux/Google, with CJK fallbacks
+     for Chinese/Japanese characters at every platform level. */
+  -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
+                   "-apple-system", "PingFang SC", "Hiragino Sans GB", "Hiragino Sans",
+                   "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC",
+                   "WenQuanYi Micro Hei", "Noto Sans",
+                   "Helvetica Neue", Arial, sans-serif;
+}
 .stealth-root.theme-dark {
   -fx-background-color: #1f2327;
   -fx-border-color: #121417;

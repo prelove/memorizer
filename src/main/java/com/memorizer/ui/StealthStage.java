@@ -103,6 +103,7 @@ public class StealthStage extends Stage {
         refreshTodayProgress();
         applyThemeClasses();
         applyModeLayout();
+        applyFontScale();
     }
 
     private void buildUI() {
@@ -316,8 +317,42 @@ public class StealthStage extends Stage {
         refreshTodayProgress();
     }
     public void refreshTodayProgress() { progressView.refresh(); }
+    public UIMode getMode() { return mode; }
     public void setUIMode(UIMode m) { if (m != null && m != mode) { mode = m; Config.set("app.ui.mode", mode==UIMode.MINI?"mini":"normal"); applyModeLayout(); StealthWindowPositioner.applyGeometry(this, mode); updateExamplesVisibility(); } }
     public void setTheme(ThemeMode t) { if (t != null && t != theme) { theme = t; Config.set("app.ui.theme", theme==ThemeMode.LIGHT?"light":"dark"); applyThemeClasses(); } }
+
+    /**
+     * Apply the user's font-scale preference ({@code app.ui.font-scale}) to the
+     * key content labels.  This is a programmatic override on top of CSS because
+     * JavaFX CSS {@code px} sizes don't cascade through containers the way HTML/CSS
+     * {@code em} units do.  Calling this after every theme or preference change
+     * keeps the text size in sync with the banner height set by
+     * {@link StealthWindowPositioner#applyGeometry}.
+     */
+    public void applyFontScale() {
+        double s = Config.getFontScale();
+        if (s == 1.0) {
+            // Clear any previously set inline styles so CSS rules take over
+            front.setStyle("");
+            back.setStyle("");
+            readingPos.setStyle("");
+            examplesMini.setStyle("");
+            todayText.setStyle("");
+            batchInfo.setStyle("");
+            batchText.setStyle("");
+        } else {
+            String mainStyle  = String.format("-fx-font-size: %.0fpx; -fx-font-weight: 700;", Math.round(16 * s));
+            String subStyle   = String.format("-fx-font-size: %.0fpx;", Math.round(13 * s));
+            String tinyStyle  = String.format("-fx-font-size: %.0fpx;", Math.round(11 * s));
+            front.setStyle(mainStyle);
+            back.setStyle(mainStyle);
+            readingPos.setStyle(subStyle);
+            examplesMini.setStyle(tinyStyle);
+            todayText.setStyle(tinyStyle);
+            batchInfo.setStyle(tinyStyle);
+            batchText.setStyle(tinyStyle);
+        }
+    }
     public void showAndFocus() { if (!isShowing()) show(); toFront(); requestFocus(); setIconified(false); }
     /** Skip current card without rating and advance batch if applicable. */
     public void skipCurrent() {

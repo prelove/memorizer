@@ -30,6 +30,7 @@ public class PreferencesStage extends Stage {
     private TextField tfDailyTarget, tfDailyNew, tfChallengeSize;
     private TextField tfWidthN, tfWidthM, tfOpacity;
     private TextField tfExRollMs, tfExMarqMsPerPx;
+    private TextField tfFontScale;
     private CheckBox cbForceFallback, cbSnoozeOnHide, cbOverlay;
     private CheckBox cbMiniIncludeRP;
     private CheckBox cbHidePos;
@@ -155,6 +156,16 @@ public class PreferencesStage extends Stage {
             boolean hidePos = (cbHidePos != null && cbHidePos.isSelected());
             applyIfChangedBool("app.ui.stealth.hide-pos", hidePos, null);
 
+            // Font scale — applies text sizes and banner height to suit user's DPI preference
+            // Write the raw text to config first; Config.getFontScale() will clamp to 0.7–1.5
+            String rawScale = (tfFontScale != null ? tfFontScale.getText() : "1.0");
+            double fontScaleNew = parseFontScale(rawScale);
+            boolean fontScaleChanged = applyIfChanged("app.ui.font-scale", String.valueOf(fontScaleNew), null);
+            if (fontScaleChanged && stealth != null) {
+                stealth.applyFontScale();
+                stealthPosUpdate = true; // banner height changes with font scale
+            }
+
             // Examples speeds
             int rollMs = parseInt(tfExRollMs.getText(), Config.getInt("app.ui.examples.roll-interval-ms", 2800));
             applyIfChangedInt("app.ui.examples.roll-interval-ms", rollMs, null);
@@ -165,6 +176,7 @@ public class PreferencesStage extends Stage {
             applyIfChangedInt("app.ui.progress.dot-radius", dotR, null);
 
             if (stealthPosUpdate && stealth != null) {
+                StealthWindowPositioner.applyGeometry(stealth, stealth.getMode());
                 if (stealth.isShowing()) stealth.showAndFocus();
             }
             if (needReschedule) scheduler.rescheduleNow();
@@ -311,6 +323,18 @@ public class PreferencesStage extends Stage {
         cbHidePos.setTooltip(new Tooltip("When enabled, Reading/POS is never shown in the stealth banner (Normal details state and Mini flip cycle)."));
         g.add(cbHidePos, 1, r++);
 
+        // Font Scale — user-controlled text size multiplier for the stealth banner.
+        // Useful on very-high-DPI screens running at 100% OS scaling, or for users
+        // who simply prefer larger/smaller text regardless of display DPI.
+        // Range 0.7 (smaller) – 1.5 (larger). Default 1.0.
+        g.add(new Label("Font scale (0.7–1.5)"), 0, r);
+        tfFontScale = new TextField(String.valueOf(Config.getFontScale())); tfFontScale.setPrefColumnCount(6);
+        tfFontScale.setTooltip(new Tooltip(
+                "Multiplier applied to banner font sizes and banner height.\n"
+                + "1.0 = default  |  1.25 = 25% larger  |  0.85 = smaller\n"
+                + "Useful when OS DPI scaling is off or fonts look too small/large."));
+        g.add(tfFontScale, 1, r++);
+
         // Examples speeds
         g.add(new Label("Examples roll interval (ms)"), 0, r);
         tfExRollMs = new TextField(String.valueOf(Config.getInt("app.ui.examples.roll-interval-ms", 2800))); tfExRollMs.setPrefColumnCount(6);
@@ -381,5 +405,11 @@ public class PreferencesStage extends Stage {
     }
     private static double parseDouble(String s, double def) {
         try { return Double.parseDouble(s.trim()); } catch (Exception e) { return def; }
+    }
+    /** Delegates to {@link Config#getFontScale()} after temporarily storing the raw value. */
+    private static double parseFontScale(String s) {
+        // Parse and clamp inline: same range as Config.getFontScale() (0.7 – 1.5)
+        try { double v = Double.parseDouble(s.trim()); return (v >= 0.7 && v <= 1.5) ? v : 1.0; }
+        catch (Throwable ignored) { return 1.0; }
     }
 }

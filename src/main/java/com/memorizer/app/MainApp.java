@@ -119,6 +119,26 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
+        // ---- HiDPI / font-rendering properties (must be set before JavaFX starts) ----
+        // Enable HiDPI: JavaFX uses logical pixels; the rendering pipeline scales to
+        // the physical display resolution automatically, giving crisp output on 2K/4K.
+        System.setProperty("prism.allowhidpi", "true");
+        // T2K text renderer: improved glyph rasterisation, sharper on all DPI levels.
+        System.setProperty("prism.text", "t2k");
+        // Gray (rather than sub-pixel LCD) antialiasing works better across varied DPI
+        // and avoids colour fringing on non-ClearType Windows setups.
+        System.setProperty("prism.lcdtext", "false");
+        // Linux: request GTK3 integration for better font/cursor/HiDPI detection.
+        String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
+        if (os.contains("linux")) {
+            if (System.getProperty("jdk.gtk.version") == null) {
+                System.setProperty("jdk.gtk.version", "3");
+            }
+            // Respect GDK_SCALE / GDK_DPI_SCALE automatically set by desktop env.
+            if (System.getProperty("glass.gtk.uiScale") == null) {
+                System.setProperty("glass.gtk.uiScale", "auto");
+            }
+        }
         launch(args);
     }
 }
