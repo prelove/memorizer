@@ -107,3 +107,43 @@
 2025-10-29 23:22:13.393 INFO  com.memorizer.app.Scheduler - Busy (session active). Defer next tick by 3 min.
 2025-10-29 23:25:13.396 INFO  com.memorizer.app.Scheduler - Busy (session active). Defer next tick by 3 min.
 2025-10-29 23:27:59.758 INFO  com.memorizer.app.H2ConsoleServer - H2 Console stopped.
+2026-02-28 12:05:44.114 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:/tmp/memo-db-13042042237386928146/memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2026-02-28 12:05:44.325 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2026-02-28 12:05:44.325 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:/tmp/memo-db-13042042237386928146/memo (H2 1.4)
+2026-02-28 12:05:44.377 INFO  o.f.core.internal.command.DbValidate - Successfully validated 3 migrations (execution time 00:00.022s)
+2026-02-28 12:05:44.395 INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+2026-02-28 12:05:44.445 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": << Empty Schema >>
+2026-02-28 12:05:44.455 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "1 - init"
+2026-02-28 12:05:44.503 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "2 - study plan"
+2026-02-28 12:05:44.526 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "3 - review log uuid and indexes"
+2026-02-28 12:05:44.550 INFO  o.f.core.internal.command.DbMigrate - Successfully applied 3 migrations to schema "PUBLIC", now at version v3 (execution time 00:00.116s)
+2026-02-28 12:05:44.596 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:/tmp/memo-db-17535795655195590331/memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2026-02-28 12:05:44.633 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2026-02-28 12:05:44.633 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:/tmp/memo-db-17535795655195590331/memo (H2 1.4)
+2026-02-28 12:05:44.641 INFO  o.f.core.internal.command.DbValidate - Successfully validated 3 migrations (execution time 00:00.004s)
+2026-02-28 12:05:44.647 INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+2026-02-28 12:05:44.661 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": << Empty Schema >>
+2026-02-28 12:05:44.666 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "1 - init"
+2026-02-28 12:05:44.688 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "2 - study plan"
+2026-02-28 12:05:44.704 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "3 - review log uuid and indexes"
+2026-02-28 12:05:44.721 INFO  o.f.core.internal.command.DbMigrate - Successfully applied 3 migrations to schema "PUBLIC", now at version v3 (execution time 00:00.065s)
+2026-02-28 12:06:51.547 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:/tmp/memo-db-16539618974624005449/memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2026-02-28 12:06:51.741 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2026-02-28 12:06:51.742 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:/tmp/memo-db-16539618974624005449/memo (H2 1.4)
+2026-02-28 12:06:51.787 INFO  o.f.core.internal.command.DbValidate - Successfully validated 3 migrations (execution time 00:00.020s)
+2026-02-28 12:06:51.805 INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+2026-02-28 12:06:51.855 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": << Empty Schema >>
+2026-02-28 12:06:51.870 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "1 - init"
+2026-02-28 12:06:51.920 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "2 - study plan"
+2026-02-28 12:06:51.943 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "3 - review log uuid and indexes"
+2026-02-28 12:06:51.970 INFO  o.f.core.internal.command.DbMigrate - Successfully applied 3 migrations to schema "PUBLIC", now at version v3 (execution time 00:00.126s)
+2026-02-28 12:06:52.011 INFO  com.memorizer.db.Database - Opening H2 at url=jdbc:h2:file:/tmp/memo-db-9072218969287673418/memo;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=-1
+2026-02-28 12:06:52.049 INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 7.15.0 by Redgate
+2026-02-28 12:06:52.049 INFO  o.f.c.i.d.base.BaseDatabaseType - Database: jdbc:h2:file:/tmp/memo-db-9072218969287673418/memo (H2 1.4)
+2026-02-28 12:06:52.057 INFO  o.f.core.internal.command.DbValidate - Successfully validated 3 migrations (execution time 00:00.004s)
+2026-02-28 12:06:52.062 INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+2026-02-28 12:06:52.076 INFO  o.f.core.internal.command.DbMigrate - Current version of schema "PUBLIC": << Empty Schema >>
+2026-02-28 12:06:52.080 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "1 - init"
+2026-02-28 12:06:52.103 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "2 - study plan"
+2026-02-28 12:06:52.118 INFO  o.f.core.internal.command.DbMigrate - Migrating schema "PUBLIC" to version "3 - review log uuid and indexes"
+2026-02-28 12:06:52.135 INFO  o.f.core.internal.command.DbMigrate - Successfully applied 3 migrations to schema "PUBLIC", now at version v3 (execution time 00:00.064s)
