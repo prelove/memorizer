@@ -2,6 +2,11 @@
   -fx-background-radius: 12;
   -fx-background-insets: 0;
   -fx-padding: 3 12 3 12; /* Normal - tight to fit 2x2 32px buttons */
+  -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
+                   "-apple-system", "PingFang SC", "Hiragino Sans GB", "Hiragino Sans",
+                   "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC",
+                   "WenQuanYi Micro Hei", "Noto Sans",
+                   "Helvetica Neue", Arial, sans-serif;
   -fx-fg: #E7EAF0;            /* primary */
   -fx-fg-muted: #A5AABA;      /* secondary */
   -fx-fg-disabled: #8891A5;   /* disabled */

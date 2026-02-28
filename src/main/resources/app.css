@@ -15,7 +15,11 @@
   -fx-background-radius: 12; /* rounded corners ~10–12px */
   -fx-padding: 12; /* outer 12px */
   -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 18, 0.25, 0, 2);
-  -fx-font-family: "Noto Sans SC", "Noto Sans JP", "Inter", "Segoe UI", sans-serif;
+  -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
+                   "-apple-system", "PingFang SC", "Hiragino Sans GB", "Hiragino Sans",
+                   "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC",
+                   "WenQuanYi Micro Hei", "Noto Sans",
+                   "Inter", "Helvetica Neue", Arial, sans-serif;
   -fx-text-fill: #E6EAF2; /* TXT_MAIN */
 }
 
