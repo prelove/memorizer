@@ -2,6 +2,13 @@
 /target/
 target/
 
+# Maven local repository cache
+.m2/
+
+# Windows-style drive-letter paths (e.g. D：/)
+[A-Z]：/
+[A-Z]/
+
 .pnpm-store/
 dist/
 build/
