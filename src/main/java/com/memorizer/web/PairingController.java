@@ -37,8 +37,9 @@ public final class PairingController {
             String scheme = mgr.isHttpsActive() ? "https" : "http";
             String base = String.format("%s://%s:%d", scheme, mgr.getHost()==null? host : mgr.getHost(), mgr.getPort()==0? port : mgr.getPort());
             String payloadJson = WebUtil.buildPairingPayload(mgr.getHost()==null? host : mgr.getHost(), mgr.getPort()==0? port : mgr.getPort(), t, mgr.isHttpsActive());
+            String caUrl = base + "/pair/ca.crt";
             String html = "<html><head><meta charset='utf-8'><title>Pair Mobile</title>"+
-                    "<style>body{font-family:sans-serif;background:#1f2327;color:#f1f3f5} .row{margin:10px 0} .box{background:#2a2f34;padding:10px;border-radius:8px} input{width:100%;padding:8px;border-radius:6px;border:1px solid #121417;background:#1e2327;color:#e6e6e6} button{background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:8px 10px;margin-left:8px} a{color:#9ecbff;text-decoration:none} .muted{color:#bdbdbd;font-size:12px} .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#2a2f34;margin-right:8px} .ok{color:#90ee90} .bad{color:#ff9aa2}</style>"+
+                    "<style>body{font-family:sans-serif;background:#1f2327;color:#f1f3f5;max-width:640px;margin:0 auto;padding:16px} .row{margin:10px 0} .box{background:#2a2f34;padding:10px;border-radius:8px} input{width:100%;padding:8px;border-radius:6px;border:1px solid #121417;background:#1e2327;color:#e6e6e6;box-sizing:border-box} button{background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:8px 10px;margin-left:8px;cursor:pointer} a{color:#9ecbff;text-decoration:none} .muted{color:#bdbdbd;font-size:12px} .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#2a2f34;margin-right:8px} .ok{color:#90ee90} .bad{color:#ff9aa2} details summary{cursor:pointer;padding:6px 0;font-weight:600} details[open] summary{margin-bottom:8px} ol{margin:8px 0 0 18px;padding:0;line-height:1.7} .step-title{font-weight:600;margin-bottom:4px}</style>"+
                     "<script>function cp(id){var el=document.getElementById(id); el.select(); el.setSelectionRange(0,99999); try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}} function st(){var sc=(window.isSecureContext? 'yes':'no'); var cam=(navigator.mediaDevices && navigator.mediaDevices.getUserMedia? 'yes':'no'); var scEl=document.getElementById('sc'); var cmEl=document.getElementById('cm'); if(scEl){ scEl.textContent=sc; scEl.className='pill '+(sc==='yes'?'ok':'bad'); } if(cmEl){ cmEl.textContent=cam; cmEl.className='pill '+(cam==='yes'?'ok':'bad'); }}</script>"+
                     "</head><body>"+
                     "<h2>Pair Mobile</h2>"+
@@ -48,6 +49,35 @@ public final class PairingController {
                     "<div class='row box'><div>Pairing Token</div><div style='display:flex;align-items:center;gap:8px'><input id='tok' value='"+t+"' readonly><button onclick=\"cp('tok')\">Copy</button></div></div>"+
                     "<div class='row box'><div>QR Payload (JSON)</div><div style='display:flex;align-items:center;gap:8px'><input id='jp' value='"+payloadJson+"' readonly><button onclick=\"cp('jp')\">Copy</button></div></div>"+
                     "<div class='row box'><div><b>Status</b></div><div>Secure Context: <span id='sc' class='pill'>...</span> Camera API: <span id='cm' class='pill'>...</span> <button onclick=\"st()\">Check</button></div></div>"+
+                    // iOS setup steps
+                    "<details class='row box'><summary>📱 iOS Setup (Safari)</summary>"+
+                    "<div class='step-title'>1 — Install the CA certificate</div>"+
+                    "<ol>"+
+                    "<li>Open <a href='"+caUrl+"' target='_blank'>"+caUrl+"</a> in Safari on your iPhone/iPad.</li>"+
+                    "<li>Tap <b>Allow</b> when asked to download a configuration profile.</li>"+
+                    "<li>Go to <b>Settings → General → VPN &amp; Device Management</b> and install the <em>Memorizer CA</em> profile.</li>"+
+                    "<li>Go to <b>Settings → General → About → Certificate Trust Settings</b> and toggle <em>Memorizer CA</em> to full trust.</li>"+
+                    "</ol>"+
+                    "<div class='step-title' style='margin-top:10px'>2 — Pair in the PWA</div>"+
+                    "<ol>"+
+                    "<li>Open <a href='"+base+"/pwa/' target='_blank'>"+base+"/pwa/</a> in Safari.</li>"+
+                    "<li>Tap <b>Connect</b>, then <b>Scan QR</b> or paste the token above.</li>"+
+                    "<li>When prompted for camera access, tap <b>Allow</b>.</li>"+
+                    "</ol></details>"+
+                    // Android setup steps
+                    "<details class='row box'><summary>🤖 Android Setup (Chrome)</summary>"+
+                    "<div class='step-title'>1 — Install the CA certificate</div>"+
+                    "<ol>"+
+                    "<li>Download <a href='"+caUrl+"'>ca.crt</a> on your Android device.</li>"+
+                    "<li>Go to <b>Settings → Security → Encryption &amp; Credentials → Install a certificate → CA Certificate</b>.</li>"+
+                    "<li>Select the downloaded <em>ca.crt</em> file and confirm. (Path may vary by Android version.)</li>"+
+                    "</ol>"+
+                    "<div class='step-title' style='margin-top:10px'>2 — Pair in the PWA</div>"+
+                    "<ol>"+
+                    "<li>Open <a href='"+base+"/pwa/' target='_blank'>"+base+"/pwa/</a> in Chrome.</li>"+
+                    "<li>Tap <b>Connect</b>, then <b>Scan QR</b> or paste the token above.</li>"+
+                    "<li>Allow camera access when Chrome asks for permission.</li>"+
+                    "</ol></details>"+
                     "</body></html>";
             ctx.contentType("text/html; charset=utf-8").result(html);
         });

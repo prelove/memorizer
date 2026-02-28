@@ -32,6 +32,7 @@ public class PreferencesStage extends Stage {
     private TextField tfExRollMs, tfExMarqMsPerPx;
     private CheckBox cbForceFallback, cbSnoozeOnHide, cbOverlay;
     private CheckBox cbMiniIncludeRP;
+    private CheckBox cbHidePos;
     private CheckBox cbDeckAutoBatch;
     private TextField tfDotRadius, tfPerRow;
 
@@ -149,6 +150,10 @@ public class PreferencesStage extends Stage {
             // Mini line-cycle preferences
             boolean miniIncludeRP = (cbMiniIncludeRP != null && cbMiniIncludeRP.isSelected());
             applyIfChangedBool("app.ui.mini.include-reading-pos", miniIncludeRP, null);
+
+            // Hide POS/Reading in stealth banner
+            boolean hidePos = (cbHidePos != null && cbHidePos.isSelected());
+            applyIfChangedBool("app.ui.stealth.hide-pos", hidePos, null);
 
             // Examples speeds
             int rollMs = parseInt(tfExRollMs.getText(), Config.getInt("app.ui.examples.roll-interval-ms", 2800));
@@ -300,6 +305,11 @@ public class PreferencesStage extends Stage {
         cbMiniIncludeRP.setSelected(Config.getBool("app.ui.mini.include-reading-pos", true));
         cbMiniIncludeRP.setTooltip(new Tooltip("When enabled, the Mini window cycles Reading/POS between Back and Examples lines."));
         g.add(cbMiniIncludeRP, 1, r++);
+
+        cbHidePos = new CheckBox("Hide POS/Reading in stealth banner");
+        cbHidePos.setSelected(Config.getBool("app.ui.stealth.hide-pos", false));
+        cbHidePos.setTooltip(new Tooltip("When enabled, Reading/POS is never shown in the stealth banner (Normal details state and Mini flip cycle)."));
+        g.add(cbHidePos, 1, r++);
 
         // Examples speeds
         g.add(new Label("Examples roll interval (ms)"), 0, r);

@@ -399,7 +399,8 @@ public class StealthStage extends Stage {
         java.util.List<String> seq = new java.util.ArrayList<>();
         for (String s : splitLines(v.getFront())) addIfNotBlank(seq, s);
         for (String s : splitLines(v.getBack())) addIfNotBlank(seq, s);
-        if (com.memorizer.app.Config.getBool("app.ui.mini.include-reading-pos", true)) {
+        boolean hidePos = com.memorizer.app.Config.getBool("app.ui.stealth.hide-pos", false);
+        if (!hidePos && com.memorizer.app.Config.getBool("app.ui.mini.include-reading-pos", true)) {
             String rp = buildReadingPos(v);
             for (String s : splitLines(rp)) addIfNotBlank(seq, s);
         }
@@ -441,7 +442,8 @@ public class StealthStage extends Stage {
             // 0: Front, 1: Back, 2: Both+Details
             boolean showFront = (state == 0) || (state == 2);
             boolean showBack  = (state == 1) || (state == 2);
-            boolean showRP    = (state == 2);
+            boolean hidePos   = com.memorizer.app.Config.getBool("app.ui.stealth.hide-pos", false);
+            boolean showRP    = (state == 2) && !hidePos;
             front.setText(showFront ? safe(v.getFront()) : ""); front.setVisible(showFront); front.setManaged(showFront);
             back.setText(showBack ? safe(v.getBack()) : "");   back.setVisible(showBack);   back.setManaged(showBack);
             readingPos.setVisible(showRP); readingPos.setManaged(showRP);
