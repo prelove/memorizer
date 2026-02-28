@@ -22,8 +22,12 @@ public class ExamplesViewManagerTest {
 
     @BeforeAll
     static void initFx() throws Exception {
-        // Initialize JavaFX runtime via JFXPanel to be compatible across JavaFX versions
-        new JFXPanel();
+        // Skip test entirely if there is no display available (headless CI)
+        try {
+            new JFXPanel();
+        } catch (RuntimeException | Error e) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "No display available, skipping JavaFX tests");
+        }
     }
 
     @Test

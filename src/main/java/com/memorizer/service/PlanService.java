@@ -293,7 +293,7 @@ public class PlanService {
         String sql = "SELECT c.id FROM card c JOIN note n ON n.id=c.note_id WHERE (c.due_at IS NOT NULL AND c.due_at <= ?) AND c.status <> 3"
                 + whereFilter + " ORDER BY c.due_at ASC LIMIT ?";
         try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
-            int idx=1; ps.setTimestamp(idx++, now); ps.setInt(idx++, limit); idx = bindDeckFilterIfAny(ps, idx);
+            int idx=1; ps.setTimestamp(idx++, now); idx = bindDeckFilterIfAny(ps, idx); ps.setInt(idx++, limit);
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findDueCards failed", e); }
         return out;
@@ -305,7 +305,7 @@ public class PlanService {
         String sql = "SELECT c.id FROM card c JOIN note n ON n.id=c.note_id WHERE (c.due_at IS NULL OR c.status = 0) AND c.status <> 3"
                 + whereFilter + " ORDER BY c.id ASC LIMIT ?";
         try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
-            int idx=1; ps.setInt(idx++, Math.max(0, limit)); idx = bindDeckFilterIfAny(ps, idx);
+            int idx=1; idx = bindDeckFilterIfAny(ps, idx); ps.setInt(idx++, Math.max(0, limit));
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findNewCards failed", e); }
         return out;
@@ -317,7 +317,7 @@ public class PlanService {
         String sql = "SELECT c.id FROM card c JOIN note n ON n.id=c.note_id WHERE (c.lapses >= ? OR c.ease <= 1.3) AND c.status <> 3"
                 + whereFilter + " ORDER BY c.lapses DESC LIMIT ?";
         try (PreparedStatement ps = Database.get().prepareStatement(sql)) {
-            int idx=1; ps.setInt(idx++, lapsesThresh); ps.setInt(idx++, limit); idx = bindDeckFilterIfAny(ps, idx);
+            int idx=1; ps.setInt(idx++, lapsesThresh); idx = bindDeckFilterIfAny(ps, idx); ps.setInt(idx++, limit);
             try (ResultSet rs = ps.executeQuery()) { while (rs.next()) out.add(rs.getLong(1)); }
         } catch (SQLException e) { throw new RuntimeException("findLeechCards failed", e); }
         return out;
