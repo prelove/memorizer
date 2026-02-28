@@ -15,6 +15,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.control.ProgressBar;
 
 import java.util.ArrayList;
@@ -28,7 +29,7 @@ import java.util.Optional;
  */
 public class ExamPanel {
     private final StudyService studyService;
-    
+
     // UI components
     private final Label examFront = new Label();
     private final Label examBack = new Label();
@@ -41,7 +42,13 @@ public class ExamPanel {
     private final Label examOkLabel = new Label("OK: 0");
     private final Label examNgLabel = new Label("NG: 0");
     private final ProgressBar examProgressBar = new ProgressBar(0);
-    
+
+    // Extra card-panel labels (managed visibility together with answer)
+    private Label answerBadge;
+    private Separator cardDivider;
+    private HBox cardMetaRow;
+    private Label examplesHeaderLabel;
+
     private ComboBox<String> examSourceBox;
     private CheckBox examShuffleBox;
     private Spinner<Integer> examBatchSpinner;
@@ -49,20 +56,20 @@ public class ExamPanel {
     private CheckBox examCompactBox;
     private CheckBox examBackFirstBox;
     private Button btnExport;
-    
+
     private Button btnExamShow;
     private Button btnExamCorrect;
     private Button btnExamWrong;
     private Button btnExamNext;
     private Button btnExamRestart;
-    
+
     // Exam state
     private boolean examShowingAnswer = false;
     private final List<Long> examQueue = new ArrayList<>();
     private int examIndex = 0;
     private int examCorrect = 0;
     private int examWrong = 0;
-    
+
     // Results log for export
     private static class ExamResult { long cardId; boolean correct; }
     private final List<ExamResult> results = new ArrayList<>();
@@ -71,103 +78,181 @@ public class ExamPanel {
         this.studyService = studyService;
     }
 
-    /**
-     * Build the exam panel UI.
-     * @return the constructed exam pane
-     */
-    // hold rows to adjust spacing in compact mode
-    private HBox ctrlRow1;
-    private HBox ctrlRow2;
-    private HBox ctrlRow3;
+    // ---- compact mode ref (kept for applySizing) ----
+    private VBox bottomSection;
 
     public Pane build() {
         BorderPane root = new BorderPane();
-        VBox box = new VBox(12);
-        box.setPadding(new Insets(16));
+        root.setStyle("-fx-background-color: #f0f4f8;");
 
-        // Style front and back labels
-        examFront.setStyle("-fx-font-size: 22px;");
-        examBack.setStyle("-fx-font-size: 20px; -fx-text-fill: #444;");
+        // ── Create all buttons and config controls first ──────────────────────
+        createButtons();
+
+        // ── TOP: settings bar + progress bar ──────────────────────────────────
+        VBox topSection = new VBox(8);
+        topSection.setPadding(new Insets(10, 16, 10, 16));
+        topSection.setStyle("-fx-background-color: #ffffff;"
+                + "-fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0;");
+
+        // Settings row
+        HBox settingsLeft = new HBox(10,
+                new Label("Source:"), examSourceBox,
+                examShuffleBox,
+                new Label("Batch:"), examBatchSpinner,
+                examBackFirstBox,
+                examRepeatWrongsBox
+        );
+        settingsLeft.setAlignment(Pos.CENTER_LEFT);
+        // Compact toggle appended into settingsLeft
+        boolean compactPref = Config.getBool("app.ui.exam.compact", false);
+        ensureCompactToggle(settingsLeft, compactPref);
+
+        Region settingsSpacer = new Region();
+        HBox.setHgrow(settingsSpacer, Priority.ALWAYS);
+        Button btnEditTop = new Button("Edit…");
+        btnEditTop.setStyle("-fx-font-size: 12px;");
+        btnEditTop.setOnAction(e -> openEditorForCurrent());
+        HBox settingsRow = new HBox(10, settingsLeft, settingsSpacer, btnEditTop);
+        settingsRow.setAlignment(Pos.CENTER_LEFT);
+
+        // Progress row
+        examProgressBar.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(examProgressBar, Priority.ALWAYS);
+        examProgressBar.setPrefHeight(10);
+        examProgressBar.setStyle("-fx-accent: #3fb950; -fx-background-radius: 5;");
+
+        examProgress.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #4a5568;");
+        examOkLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #38a169; -fx-font-weight: bold;");
+        examNgLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #e53e3e; -fx-font-weight: bold;");
+        examScore.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568; -fx-font-weight: bold;");
+
+        HBox progressRow = new HBox(10,
+                examProgress, examProgressBar,
+                examOkLabel, examNgLabel, examScore
+        );
+        progressRow.setAlignment(Pos.CENTER_LEFT);
+
+        topSection.getChildren().addAll(settingsRow, progressRow);
+        root.setTop(topSection);
+
+        // ── CENTER: card content ───────────────────────────────────────────────
+        // Front / question side
+        examFront.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
+        examFront.setWrapText(true);
+        examFront.setMaxWidth(Double.MAX_VALUE);
+
+        // Answer / back side – hidden until "Show Answer"
+        examBack.setStyle("-fx-font-size: 22px; -fx-text-fill: #2d3748;");
         examBack.setVisible(false);
-        examReadingPos.setStyle("-fx-text-fill: #555; -fx-font-size: 12px;");
+        examBack.setWrapText(true);
+        examBack.setMaxWidth(Double.MAX_VALUE);
+
+        examReadingPos.setStyle("-fx-font-size: 14px; -fx-text-fill: #718096; -fx-font-style: italic;");
         examReadingPos.setVisible(false);
+        examReadingPos.setWrapText(true);
+        examReadingPos.setMaxWidth(Double.MAX_VALUE);
+
+        examDeck.setStyle("-fx-font-size: 12px; -fx-text-fill: #ffffff;"
+                + "-fx-background-color: #667eea; -fx-background-radius: 10;"
+                + "-fx-padding: 2 10 2 10;");
+        examDeck.setVisible(false);
+
+        examTags.setStyle("-fx-font-size: 12px; -fx-text-fill: #718096;");
+        examTags.setVisible(false);
+
+        Label questionBadge = new Label("QUESTION");
+        questionBadge.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;"
+                + "-fx-text-fill: #718096; -fx-letter-spacing: 1;");
+
+        answerBadge = new Label("ANSWER");
+        answerBadge.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;"
+                + "-fx-text-fill: #2f855a; -fx-letter-spacing: 1;");
+        answerBadge.setVisible(false);
+
+        cardDivider = new Separator();
+        cardDivider.setVisible(false);
+
+        cardMetaRow = new HBox(8, examDeck, examTags);
+        cardMetaRow.setAlignment(Pos.CENTER_LEFT);
+        cardMetaRow.setVisible(false);
+
+        VBox cardPane = new VBox(10,
+                questionBadge,
+                examFront,
+                cardDivider,
+                answerBadge,
+                examBack,
+                examReadingPos,
+                cardMetaRow
+        );
+        cardPane.setPadding(new Insets(24, 28, 24, 28));
+        cardPane.setStyle("-fx-background-color: #ffffff;"
+                + "-fx-background-radius: 12;"
+                + "-fx-border-color: #e2e8f0;"
+                + "-fx-border-radius: 12;"
+                + "-fx-border-width: 1;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3);");
+        cardPane.setMaxWidth(Double.MAX_VALUE);
+
+        // Examples section
         examExamples.setEditable(false);
         examExamples.setWrapText(true);
         examExamples.setVisible(false);
         examExamples.setPrefRowCount(3);
+        examExamples.setStyle("-fx-font-size: 13px;"
+                + "-fx-control-inner-background: #f7fafc;"
+                + "-fx-border-color: #e2e8f0; -fx-border-radius: 6;");
 
-        HBox frontRow = new HBox(10, new Label("Front:"), examFront);
-        HBox backRow = new HBox(10, new Label("Back:"), examBack);
-        HBox rpRow = new HBox(10, new Label("Reading/POS:"), examReadingPos);
-        HBox rowDeck = new HBox(10, new Label("Deck:"), examDeck);
-        HBox rowTags = new HBox(10, new Label("Tags:"), examTags);
+        examplesHeaderLabel = new Label("EXAMPLES");
+        examplesHeaderLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;"
+                + "-fx-text-fill: #718096; -fx-letter-spacing: 1;");
+        examplesHeaderLabel.setVisible(false);
 
-        // Create control buttons
-        createButtons();
-        
-        // Create three-line controls
-        // Row 1: configuration (left) + Edit/Show Answer (right)
-        HBox controlsRow1 = new HBox(10,
-            new Label("Source:"), examSourceBox,
-            examShuffleBox,
-            new Label("Batch:"), examBatchSpinner,
-            examBackFirstBox,
-            examRepeatWrongsBox
-        );
-        controlsRow1.setAlignment(Pos.CENTER_LEFT);
-        javafx.scene.layout.Region spacerTop = new javafx.scene.layout.Region();
-        HBox.setHgrow(spacerTop, Priority.ALWAYS);
-        Button btnEditTop = new Button("Edit…");
-        btnEditTop.setOnAction(e -> openEditorForCurrent());
-        // Bigger Show Answer button on the right
-        ctrlRow1 = new HBox(10, controlsRow1, spacerTop, btnEditTop, btnExamShow);
-        ctrlRow1.setAlignment(Pos.CENTER_LEFT);
+        VBox examplesBox = new VBox(6, examplesHeaderLabel, examExamples);
+        examplesBox.setMaxWidth(Double.MAX_VALUE);
 
-        // Row 2: big Correct/Wrong, then Next/Restart on the right
-        ctrlRow2 = new HBox(10);
-        ctrlRow2.setAlignment(Pos.CENTER_LEFT);
-        javafx.scene.layout.Region spacerMid = new javafx.scene.layout.Region();
-        HBox.setHgrow(spacerMid, Priority.ALWAYS);
-        ctrlRow2.getChildren().addAll(
-            btnExamCorrect, btnExamWrong,
-            spacerMid,
-            btnExamNext, btnExamRestart
-        );
+        VBox centerBox = new VBox(16, cardPane, examplesBox);
+        centerBox.setPadding(new Insets(20, 24, 16, 24));
+        centerBox.setAlignment(Pos.TOP_CENTER);
+        centerBox.setMaxWidth(Double.MAX_VALUE);
 
-        // Row 3: progress on the left; counters and score on the right
-        ctrlRow3 = new HBox(10);
-        ctrlRow3.setAlignment(Pos.CENTER_LEFT);
-        examProgressBar.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(examProgressBar, Priority.ALWAYS);
-        examProgressBar.setStyle("-fx-accent: #3fb950;");
-        javafx.scene.layout.Region spacerBottom = new javafx.scene.layout.Region();
-        HBox.setHgrow(spacerBottom, Priority.ALWAYS);
-        // Export button inline on bottom row (init before adding)
-        btnExport = new Button("Export Results…");
+        ScrollPane centerScroll = new ScrollPane(centerBox);
+        centerScroll.setFitToWidth(true);
+        centerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        centerScroll.setStyle("-fx-background-color: #f0f4f8; -fx-background: #f0f4f8;");
+        root.setCenter(centerScroll);
+
+        // ── BOTTOM: action buttons ─────────────────────────────────────────────
+        bottomSection = new VBox(10);
+        bottomSection.setPadding(new Insets(12, 16, 16, 16));
+        bottomSection.setStyle("-fx-background-color: #ffffff;"
+                + "-fx-border-color: #e2e8f0; -fx-border-width: 1 0 0 0;");
+
+        btnExamShow.setMaxWidth(Double.MAX_VALUE);
+
+        btnExamCorrect.setMaxWidth(Double.MAX_VALUE);
+        btnExamWrong.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(btnExamCorrect, Priority.ALWAYS);
+        HBox.setHgrow(btnExamWrong, Priority.ALWAYS);
+        HBox cwRow = new HBox(12, btnExamCorrect, btnExamWrong);
+        cwRow.setAlignment(Pos.CENTER);
+
+        btnExport = new Button("Export…");
+        btnExport.setStyle("-fx-font-size: 12px;");
         btnExport.setOnAction(e -> exportResults());
-        ctrlRow3.getChildren().addAll(
-            new Label("Progress:"), examProgress, examProgressBar,
-            spacerBottom,
-            examOkLabel, examNgLabel, examScore, btnExport
-        );
+        Region navSpacer = new Region();
+        HBox.setHgrow(navSpacer, Priority.ALWAYS);
+        HBox navRow = new HBox(10, btnExamNext, btnExamRestart, navSpacer, btnExport);
+        navRow.setAlignment(Pos.CENTER_LEFT);
 
-        box.getChildren().addAll(
-            frontRow, backRow, rpRow, rowDeck, rowTags,
-            new Label("Examples:"), examExamples,
-            new Separator(),
-            ctrlRow1,
-            ctrlRow2,
-            ctrlRow3
-        );
-        root.setCenter(box);
+        bottomSection.getChildren().addAll(btnExamShow, cwRow, navRow);
+        root.setBottom(bottomSection);
 
-        // Apply initial sizing/colors and compact mode
-        boolean compactPref = Config.getBool("app.ui.exam.compact", false);
-        ensureCompactToggle(controlsRow1, compactPref);
+        // Apply initial button sizing
         applySizing(compactPref);
 
         // Setup keyboard shortcuts
-        setupKeyboardShortcuts(box);
+        setupKeyboardShortcuts(root);
 
         // Initialize first exam session
         prepareExamQueue();
@@ -180,11 +265,11 @@ public class ExamPanel {
      * Create and configure all control buttons.
      */
     private void createButtons() {
-        btnExamShow = new Button("Show Answer");
-        btnExamCorrect = new Button("  Correct");
-        btnExamWrong = new Button("  Wrong");
-        btnExamNext = new Button("Next");
-        btnExamRestart = new Button("Restart");
+        btnExamShow = new Button("▶  Show Answer  (Enter)");
+        btnExamCorrect = new Button("✓  Correct  (A)");
+        btnExamWrong = new Button("✗  Wrong  (S)");
+        btnExamNext = new Button("Next →");
+        btnExamRestart = new Button("↺  Restart");
 
         btnExamCorrect.setDisable(true);
         btnExamWrong.setDisable(true);
@@ -194,7 +279,7 @@ public class ExamPanel {
         btnExamWrong.setOnAction(e -> markWrong());
         btnExamNext.setOnAction(e -> gotoNext());
         btnExamRestart.setOnAction(e -> restart());
-        
+
         createConfigurationControls();
     }
 
@@ -290,6 +375,12 @@ public class ExamPanel {
         examDeck.setVisible(true);
         examTags.setVisible(true);
         examExamples.setVisible(true);
+        // Extra card-panel decorators
+        if (answerBadge != null) answerBadge.setVisible(true);
+        if (cardDivider != null) cardDivider.setVisible(true);
+        if (cardMetaRow != null) cardMetaRow.setVisible(true);
+        if (examplesHeaderLabel != null) examplesHeaderLabel.setVisible(
+                examExamples.getText() != null && !examExamples.getText().isEmpty());
         btnExamCorrect.setDisable(false);
         btnExamWrong.setDisable(false);
     }
@@ -433,6 +524,11 @@ public class ExamPanel {
         examDeck.setVisible(false);
         examTags.setVisible(false);
         examExamples.setVisible(false);
+        // Extra card-panel decorators
+        if (answerBadge != null) answerBadge.setVisible(false);
+        if (cardDivider != null) cardDivider.setVisible(false);
+        if (cardMetaRow != null) cardMetaRow.setVisible(false);
+        if (examplesHeaderLabel != null) examplesHeaderLabel.setVisible(false);
 
         btnExamShow.setDisable(false);
         btnExamCorrect.setDisable(true);
@@ -464,6 +560,10 @@ public class ExamPanel {
         examDeck.setVisible(false);
         examTags.setVisible(false);
         examExamples.setVisible(false);
+        if (answerBadge != null) answerBadge.setVisible(false);
+        if (cardDivider != null) cardDivider.setVisible(false);
+        if (cardMetaRow != null) cardMetaRow.setVisible(false);
+        if (examplesHeaderLabel != null) examplesHeaderLabel.setVisible(false);
         btnExamShow.setDisable(true);
         btnExamCorrect.setDisable(true);
         btnExamWrong.setDisable(true);
@@ -526,6 +626,10 @@ public class ExamPanel {
         examDeck.setVisible(false);
         examTags.setVisible(false);
         examExamples.setVisible(false);
+        if (answerBadge != null) answerBadge.setVisible(false);
+        if (cardDivider != null) cardDivider.setVisible(false);
+        if (cardMetaRow != null) cardMetaRow.setVisible(false);
+        if (examplesHeaderLabel != null) examplesHeaderLabel.setVisible(false);
         examProgress.setText(examQueue.size() + "/" + examQueue.size());
         examProgressBar.setProgress(1.0);
         updateCountersAndScore();
@@ -637,41 +741,40 @@ public class ExamPanel {
     }
 
     private void applySizing(boolean compact) {
-        // Row spacings
-        if (ctrlRow1 != null) ctrlRow1.setSpacing(compact ? 8 : 10);
-        if (ctrlRow2 != null) ctrlRow2.setSpacing(compact ? 8 : 10);
-        if (ctrlRow3 != null) ctrlRow3.setSpacing(compact ? 8 : 10);
-
+        // Bottom section spacing
+        if (bottomSection != null) bottomSection.setSpacing(compact ? 6 : 10);
         // Examples area height
         examExamples.setPrefRowCount(compact ? 2 : 3);
-
         // Button styles
         styleButtons(compact);
     }
 
     private void styleButtons(boolean compact) {
-        // Show Answer prominent
+        // Show Answer: full width, prominent blue-ish
         String showSz = compact ? "14px" : "16px";
-        String showPad = compact ? "6 12" : "8 16";
-        btnExamShow.setStyle("-fx-font-size: " + showSz + "; -fx-font-weight: bold; -fx-padding: " + showPad + ";");
-        btnExamShow.setMinHeight(compact ? 30 : 36);
+        String showPad = compact ? "8 16" : "12 20";
+        btnExamShow.setStyle("-fx-font-size: " + showSz + "; -fx-font-weight: bold;"
+                + "-fx-padding: " + showPad + ";"
+                + "-fx-background-color: linear-gradient(#667eea, #5a67d8);"
+                + "-fx-text-fill: white; -fx-background-radius: 8;");
+        btnExamShow.setMinHeight(compact ? 34 : 42);
 
         // Correct (green) and Wrong (red)
         String cwSz = compact ? "14px" : "15px";
-        String cwPad = compact ? "6 14" : "8 18";
-        String base = "-fx-font-weight: 700; -fx-text-fill: white; -fx-background-radius: 6;";
-        String greenN = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#38a169, #2f855a);";
-        String greenH = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#48bb78, #2f855a);";
-        String greenP = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#2f855a, #276749);";
-        String redN = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#e53e3e, #c53030);";
-        String redH = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#f56565, #c53030);";
-        String redP = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base +
-                " -fx-background-color: linear-gradient(#c53030, #9b2c2c);";
+        String cwPad = compact ? "8 16" : "10 20";
+        String base = "-fx-font-weight: 700; -fx-text-fill: white; -fx-background-radius: 8;";
+        String greenN = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base
+                + " -fx-background-color: linear-gradient(#38a169, #2f855a);";
+        String greenH = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base
+                + " -fx-background-color: linear-gradient(#48bb78, #2f855a);";
+        String greenP = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base
+                + " -fx-background-color: linear-gradient(#2f855a, #276749);";
+        String redN = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base
+                + " -fx-background-color: linear-gradient(#e53e3e, #c53030);";
+        String redH = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base
+                + " -fx-background-color: linear-gradient(#f56565, #c53030);";
+        String redP = "-fx-font-size: " + cwSz + "; -fx-padding: " + cwPad + "; " + base
+                + " -fx-background-color: linear-gradient(#c53030, #9b2c2c);";
 
         btnExamCorrect.setStyle(greenN);
         btnExamCorrect.setOnMouseEntered(e -> btnExamCorrect.setStyle(greenH));
@@ -684,8 +787,8 @@ public class ExamPanel {
         btnExamWrong.setOnMouseExited(e -> btnExamWrong.setStyle(redN));
         btnExamWrong.setOnMousePressed(e -> btnExamWrong.setStyle(redP));
         btnExamWrong.setOnMouseReleased(e -> btnExamWrong.setStyle(redH));
-        btnExamCorrect.setMinHeight(compact ? 30 : 34);
-        btnExamWrong.setMinHeight(compact ? 30 : 34);
+        btnExamCorrect.setMinHeight(compact ? 32 : 38);
+        btnExamWrong.setMinHeight(compact ? 32 : 38);
     }
 
     @Override
